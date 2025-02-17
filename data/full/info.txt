@@ -1,0 +1,1 @@
+fits files are automatically stored here when they are downloaded from the server

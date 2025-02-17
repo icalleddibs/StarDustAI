@@ -1,5 +1,5 @@
 import numpy as np
-
+import os 
 
 spec_file_name = "speclist.txt"
 nums = np.arange(10227, 10242) 
@@ -32,7 +32,6 @@ def write_to_speclist(hash_file_name, spec_file_name):
 
 for hash_name in hash_names:
    write_to_speclist(hash_name, spec_file_name)
-
 
 # count num files in full/platenum folder
 def count_files(plate_num):
