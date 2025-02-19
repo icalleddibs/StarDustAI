@@ -4,7 +4,7 @@ import os
 spec_file_name = "speclist.txt"
 nums = np.arange(10227, 10242) 
 #nums = np.arange(10239, 10242)
-#nums =  np.arange(10000, 10001)
+nums =  np.arange(10000, 10001)
 hash_names = []
 
 for num in nums:
@@ -15,7 +15,7 @@ with open("speclist.txt", "w") as file:
     file.write("")
 
 def write_to_speclist(hash_file_name, spec_file_name):
-    hash_folder = "hashes/"
+    hash_folder = "data/hashes/"
 #open the sha1sum file and read the lines
     with open(hash_folder + hash_file_name, "r") as file:
         plate_num = str(hash_file_name[-13:-8]) + "/"
@@ -40,9 +40,9 @@ def count_files(plate_num):
     return len([name for name in os.listdir(folder) if os.path.isfile(os.path.join(folder, name))])
 
 count = 0
-count += (count_files("full/10000/"))
+count += (count_files("data/full/10000/"))
 for i in range(10227, 10242):
-    count += ( count_files("full/" + str(i) + "/"))
+    count += ( count_files("data/full/" + str(i) + "/"))
 
 print("Total number of spectra downloaded: ")
 print(count)
