@@ -10,6 +10,20 @@ import numpy as np
 import warnings
 from sklearn.model_selection import train_test_split
 
+
+''' 
+Things on my mind:
+- Should I convert the data to float32?
+- Should I fill NaN values with 0? These Nan values occur mainly in the string columns, so I think it is ok to fill them with 0, but should those columns be fully separated from the numerical columns?
+- Is it ok to pad the rows with 0s? it's not a huge amount, I think maybe max 100 rows?
+            - also if one hot encoded with zeros, can still pad with zeros?? 
+            - in general, one hot encoding is just three tags, can they be incorporated some other way?
+
+Next steps:
+- categorical breakdown of our stuff - do we have the data we need?
+- one hot encoding method?? - data pipeline 
+- set up simple model 
+'''
 warnings.simplefilter('ignore', MergeConflictWarning)
 # List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
@@ -39,7 +53,7 @@ class FitsDataset(Dataset):
         dat1 = Table.read(file_path, format='fits', hdu=1)
         dat1 = dat1['flux', 'loglam', 'ivar', 'model']
         dat2 = Table.read(file_path, format='fits', hdu=2)
-        dat2 = dat2['PLATEQUALITY', 'PLATESN2', 'PLATE', 'TILE', 'MJD', 'FIBERID', 'OBJTYPE', 'CLASS', "SUBCLASS", 'Z', 'Z_ERR', 'SN_MEDIAN', 'SN_MEDIAN_ALL', 'ZWARNING' , 'RCHI2']
+        dat2 = dat2['PLATEQUALITY', 'PLATESN2', 'PLATE', 'TILE', 'MJD', 'FIBERID',  'CLASS', "SUBCLASS", 'Z', 'Z_ERR', 'SN_MEDIAN', 'SN_MEDIAN_ALL', 'ZWARNING' , 'RCHI2']
         data = hstack([dat1, dat2])  # Merge HDUs
         sn_median_values = np.vstack(data['SN_MEDIAN'])  # Shape: (4590, 5)
 
@@ -55,9 +69,9 @@ class FitsDataset(Dataset):
 
         # Convert Astropy Table to Pandas DataFrame
         df = data.to_pandas()
-
+        #print(df.head())
         # Convert string columns to numerical categories
-        for col in ['PLATEQUALITY', 'OBJTYPE', 'CLASS', 'SUBCLASS']:  # Columns that are strings
+        for col in ['PLATEQUALITY', 'CLASS', 'SUBCLASS']:  # Columns that are strings
             df[col] = df[col].astype('category').cat.codes  # Convert to numerical
        
         # Print the data types and shapes of each column
@@ -66,26 +80,31 @@ class FitsDataset(Dataset):
         
       
         #print("Data types in DataFrame before tensor conversion:")
+        #print(df.dtypes)
         df = df.fillna(0) #IS THIS OK???? 
         df = df.astype(np.float32) # IS THIS OK???
         # print(df.dtypes)
 
-        # print(df.head())
+        #print(df.head())
         
         # Convert Pandas DataFrame to PyTorch tensor
         data_tensor = torch.tensor(df.values, dtype=torch.float32)
         #print(data_tensor.shape)
         return data_tensor  # Return a single FITS file as a tensor
 
+
+
+## test single file then use print stuff in the class itself 
+# ------
 # # # Create a DataLoader for batch processing
 # dataloader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
 # train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
 # first_batch = next(iter(dataloader))
 
-# # Iterate through batches
-# for batch in dataloader:
-#     print(batch.shape)  # Print batch shape
-
+# # # Iterate through batches
+# # for batch in dataloader:
+# #     print(batch.shape)  # Print batch shape
+# ------
 
 # Custom collate function for padding rows
 def collate_fn(batch):
