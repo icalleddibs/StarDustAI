@@ -9,21 +9,9 @@ import subprocess
 import numpy as np
 import warnings
 from sklearn.model_selection import train_test_split
+import pandas as pd 
 
 
-''' 
-Things on my mind:
-- Should I convert the data to float32?
-- Should I fill NaN values with 0? These Nan values occur mainly in the string columns, so I think it is ok to fill them with 0, but should those columns be fully separated from the numerical columns?
-- Is it ok to pad the rows with 0s? it's not a huge amount, I think maybe max 100 rows?
-            - also if one hot encoded with zeros, can still pad with zeros?? 
-            - in general, one hot encoding is just three tags, can they be incorporated some other way?
-
-Next steps:
-- categorical breakdown of our stuff - do we have the data we need?
-- one hot encoding method?? - data pipeline 
-- set up simple model 
-'''
 warnings.simplefilter('ignore', MergeConflictWarning)
 # List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
@@ -38,10 +26,14 @@ if not file_paths:
 # Shuffle the file paths
 random.shuffle(file_paths)
 
+
 # Custom PyTorch dataset for lazy loading
 class FitsDataset(Dataset):
     def __init__(self, file_paths):
         self.file_paths = file_paths  # Store file paths
+        self.class_categories = ['STAR', 'GALAXY', 'QSO']
+        self.subclass_categories = ['nan', 'Starforming', 'Starburst', 'AGN', 'O', 'OB', 'B6', 'B9', 'A0', 'A0p', 'F2', 'F5', 'F9', 'G0', 'G2', 'G5', 'K1', 'K3', 'K5', 'K7', 'M0V', 'M2V', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L5.5', 'L9', 'T2', 'Carbon', 'Carbon_lines', 'CarbonWD', 'CV', 'BROADLINE']
+        self.plate_quality_tags = {'bad': 0,  'marginal': 1, 'good': 2, 'nan': np.nan} # FOR NOW plate quality mapped to high numbers because NaNs are mapped to 0
 
     def __len__(self):
         return len(self.file_paths)  # Total number of files
@@ -69,28 +61,37 @@ class FitsDataset(Dataset):
 
         # Convert Astropy Table to Pandas DataFrame
         df = data.to_pandas()
-        #print(df.head())
-        # Convert string columns to numerical categories
-        for col in ['PLATEQUALITY', 'CLASS', 'SUBCLASS']:  # Columns that are strings
-            df[col] = df[col].astype('category').cat.codes  # Convert to numerical
-       
-        # Print the data types and shapes of each column
-        #for col in data.colnames:
-        #   print(f"Column: {col}, Data Type: {data[col].dtype},  Shape: {data[col].shape}")
-        
-      
-        #print("Data types in DataFrame before tensor conversion:")
-        #print(df.dtypes)
-        df = df.fillna(0) #IS THIS OK???? 
-        df = df.astype(np.float32) # IS THIS OK???
-        # print(df.dtypes)
 
-        #print(df.head())
-        
-        # Convert Pandas DataFrame to PyTorch tensor
-        data_tensor = torch.tensor(df.values, dtype=torch.float32)
-        #print(data_tensor.shape)
-        return data_tensor  # Return a single FITS file as a tensor
+        # Map PLATEQUALITY to numerical values and fill NaNs with same value
+        df['PLATEQUALITY'] = df['PLATEQUALITY'].astype(str).map(self.plate_quality_tags)
+        first_value = df['PLATEQUALITY'].iloc[0]
+        df.fillna(value = {'PLATEQUALITY': first_value}, inplace=True)
+       
+
+        # one hot encode class
+        df['CLASS'] = df['CLASS'].astype(str)
+        class_label = df['CLASS'].values[0] 
+        class_one_hot = np.zeros(len(self.class_categories))
+        class_one_hot[self.class_categories.index(class_label)] = 1
+
+        # one hot encode subclass
+        df['SUBCLASS'] = df['SUBCLASS'].astype(str)
+        subclass_label = df['SUBCLASS'].values[0]
+        if subclass_label not in self.subclass_categories:
+            subclass_label = 'nan'
+        subclass_one_hot = np.zeros(len(self.subclass_categories))
+        subclass_one_hot[self.subclass_categories.index(subclass_label)] = 1
+
+        # Drop class and subclass columns and keep everything else 
+        features = df.drop(columns=['CLASS', 'SUBCLASS'])
+        features = features.fillna(0) 
+        features = features.astype(np.float32) 
+
+        features_tensor = torch.tensor(features.values, dtype=torch.float32)
+        class_label_tensor = torch.tensor(class_one_hot, dtype=torch.long)
+        subclass_label_tensor = torch.tensor(subclass_one_hot, dtype=torch.long)
+
+        return features_tensor, class_label_tensor, subclass_label_tensor  
 
 
 
@@ -101,51 +102,51 @@ class FitsDataset(Dataset):
 # train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
 # first_batch = next(iter(dataloader))
 
-# # # Iterate through batches
-# # for batch in dataloader:
-# #     print(batch.shape)  # Print batch shape
+# # Iterate through batches
+# for batch in dataloader:
+#     print(batch.shape)  # Print batch shape
 # ------
 
+#Custom collate function for padding rows
 # Custom collate function for padding rows
 def collate_fn(batch):
+    features, class_labels, subclass_labels = zip(*batch)
+
     # Find the maximum number of rows in the batch
-    max_rows = max(tensor.size(0) for tensor in batch)
+    max_rows = max(f.size(0) for f in features)
 
-    # Pad each tensor to the maximum number of rows
-    padded_batch = []
-    for tensor in batch:
-        # Create a new tensor filled with zeros for padding
-        padding = torch.zeros((max_rows - tensor.size(0), tensor.size(1)), dtype=tensor.dtype)
-        # Concatenate the original tensor with the padding
-        padded_tensor = torch.cat([tensor, padding], dim=0)
-        padded_batch.append(padded_tensor)
+    # Pad each feature tensor to the maximum number of rows
+    padded_features = []
+    for f in features:
+        padding = torch.zeros((max_rows - f.size(0), f.size(1)), dtype=f.dtype)
+        padded_f = torch.cat([f, padding], dim=0)
+        padded_features.append(padded_f)
 
-    return torch.stack(padded_batch)
+    # Convert class and subclass labels to tensors
+    class_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in class_labels])
+    subclass_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in subclass_labels])
+
+    return torch.stack(padded_features), class_labels_tensor, subclass_labels_tensor
 
 
 dataset = FitsDataset(file_paths)
 
 # Split dataset into train, validation, and test sets
-train_size = int(0.7 * len(dataset))  # 70% for training
-val_size = int(0.15 * len(dataset))    # 15% for validation
-test_size = len(dataset) - train_size - val_size  # Remaining 15% for testing
+train_size = int(0.7 * len(dataset))  
+val_size = int(0.15 * len(dataset))    
+test_size = len(dataset) - train_size - val_size  
 
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-# Create DataLoaders for each dataset with the custom collate function
+# Create DataLoaders with the updated collate function
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
 
 # Example usage
 for batch in train_loader:
-    print("Training batch shape:", batch.shape)
-    break  # Just to show the first batch
-
-for batch in val_loader:
-    print("Validation batch shape:", batch.shape)
-    break  # Just to show the first batch
-
-for batch in test_loader:
-    print("Testing batch shape:", batch.shape)
-    break  # Just to show the first batch
+    features, class_labels, subclass_labels = batch
+    print("Features batch shape:", features.shape)  # (batch_size, max_rows, num_features)
+    print("Class labels batch shape:", class_labels.shape)  # (batch_size, 3)
+    print("Subclass labels batch shape:", subclass_labels.shape)  # (batch_size, 44)
+    break
