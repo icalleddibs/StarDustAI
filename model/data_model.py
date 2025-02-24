@@ -2,15 +2,10 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from astropy.table import Table, hstack
 from astropy.utils.metadata import MergeConflictWarning
 import torch
-import random  
-import subprocess
 import numpy as np
+
 import warnings
-from tqdm import tqdm 
-from sklearn.model_selection import train_test_split
-import pandas as pd 
-import matplotlib.pyplot as plt
-import plotly as px 
+warnings.simplefilter('ignore', MergeConflictWarning)
 
 # Custom PyTorch dataset for lazy loading
 class FitsDataset(Dataset):

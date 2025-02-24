@@ -1,23 +1,23 @@
-from torch.utils.data import DataLoader
-from data_model import FitsDataset, collate_fn
-from torch.utils.data import Dataset, DataLoader, random_split
-from astropy.table import Table, hstack
-from astropy.utils.metadata import MergeConflictWarning
 import glob
-import torch
 import random 
 import os 
 import subprocess
-import numpy as np
-import warnings
 from tqdm import tqdm 
-from sklearn.model_selection import train_test_split
-import pandas as pd 
+
+# Deep Learning
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, random_split
+from data_model import FitsDataset, collate_fn
+
+# Scientific Python 
+import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd 
 import plotly as px 
+from sklearn.model_selection import train_test_split
 
-
-warnings.simplefilter('ignore', MergeConflictWarning)
 # List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
@@ -67,15 +67,15 @@ train_labels = []
 #     print(batch.shape)  # Print batch shape
 # ------
 # Example usage
+
+
 for i, batch in tqdm(enumerate(train_loader)):
     features, class_labels, subclass_labels = batch
     train_labels.append(class_labels)
-    if i == 10: 
-        break
-    #print("Features batch shape:", features.shape)  # (batch_size, max_rows, num_features)
-    #print("Class labels batch shape:", class_labels.shape)  # (batch_size, 3)
-    #print("Subclass labels batch shape:", subclass_labels.shape)  # (batch_size, 44)
-    
+    if i == 1: 
+        break 
+
+
 
 
 def plot_class_distribution(loader, class_categories):
@@ -91,3 +91,8 @@ def plot_class_distribution(loader, class_categories):
     plt.ylabel("Count")
     plt.title("Class Distribution")
     plt.show()
+
+
+
+class CNN(nn):
+    pass
