@@ -1,31 +1,16 @@
 from torch.utils.data import Dataset, DataLoader, random_split
 from astropy.table import Table, hstack
 from astropy.utils.metadata import MergeConflictWarning
-import glob
 import torch
-import random 
-import os 
+import random  
 import subprocess
 import numpy as np
 import warnings
+from tqdm import tqdm 
 from sklearn.model_selection import train_test_split
 import pandas as pd 
-
-
-warnings.simplefilter('ignore', MergeConflictWarning)
-# List all FITS files
-# Get the repo root (assumes script is inside STARDUSTAI/)
-repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-base_dir = os.path.join(repo_root, "data/full")
-file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
-
-# If no FITS files are found, raise an error
-if not file_paths:
-    raise ValueError("No FITS files found in 'data/full/'")
-
-# Shuffle the file paths
-random.shuffle(file_paths)
-
+import matplotlib.pyplot as plt
+import plotly as px 
 
 # Custom PyTorch dataset for lazy loading
 class FitsDataset(Dataset):
@@ -94,21 +79,7 @@ class FitsDataset(Dataset):
         return features_tensor, class_label_tensor, subclass_label_tensor  
 
 
-
-## test single file then use print stuff in the class itself 
-# ------
-# # # Create a DataLoader for batch processing
-# dataloader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
-# train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
-# first_batch = next(iter(dataloader))
-
-# # Iterate through batches
-# for batch in dataloader:
-#     print(batch.shape)  # Print batch shape
-# ------
-
 #Custom collate function for padding rows
-# Custom collate function for padding rows
 def collate_fn(batch):
     features, class_labels, subclass_labels = zip(*batch)
 
@@ -128,25 +99,3 @@ def collate_fn(batch):
 
     return torch.stack(padded_features), class_labels_tensor, subclass_labels_tensor
 
-
-dataset = FitsDataset(file_paths)
-
-# Split dataset into train, validation, and test sets
-train_size = int(0.7 * len(dataset))  
-val_size = int(0.15 * len(dataset))    
-test_size = len(dataset) - train_size - val_size  
-
-train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
-
-# Create DataLoaders with the updated collate function
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
-
-# Example usage
-for batch in train_loader:
-    features, class_labels, subclass_labels = batch
-    print("Features batch shape:", features.shape)  # (batch_size, max_rows, num_features)
-    print("Class labels batch shape:", class_labels.shape)  # (batch_size, 3)
-    print("Subclass labels batch shape:", subclass_labels.shape)  # (batch_size, 44)
-    break
