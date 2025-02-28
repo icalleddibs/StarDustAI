@@ -7,7 +7,9 @@ from tqdm import tqdm
 # Deep Learning
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
+import torchinfo
 from torch.utils.data import DataLoader, random_split
 from data_model import FitsDataset, collate_fn
 
@@ -38,7 +40,7 @@ dataset = FitsDataset(file_paths)
 batch_size = 32
 num_classes = 3
 num_subclasses = 44
-num_epochs = 10
+num_epochs = 1
 learning_rate = 0.001
 
 # Split dataset into train, validation, and test sets
@@ -48,7 +50,7 @@ test_size = len(dataset) - train_size - val_size
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
 # Create DataLoaders with the updated collate function
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, pin_memory=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
@@ -59,7 +61,6 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # train_subclass_labels = [label for _, _, label in train_loader.dataset]
 # train_subclass_labels = torch.cat(train_subclass_labels, dim=0)
 # print("Train subclass labels shape:", train_subclass_labels.shape)  # (num_samples, 44)
-train_labels = []
 
 ## test single file then use print stuff in the class itself 
 # ------
@@ -68,17 +69,13 @@ train_labels = []
 # train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
 # first_batch = next(iter(dataloader))
 
-# # Iterate through batches
-# for batch in dataloader:
-#     print(batch.shape)  # Print batch shape
-# ------
-# Example usage
+
 
 
 for i, batch in tqdm(enumerate(train_loader)):
     features, class_labels, subclass_labels = batch
-    train_labels.append(class_labels)
-    if i == 1: 
+    print(features.shape, class_labels.shape, features.names)
+    if i == 10: 
         break 
 
 def count_parameters(model):
@@ -90,13 +87,16 @@ def evaluate(model):
     total = 0
     with torch.no_grad():
         for batch in val_loader:
-            features, class_labels, subclass_labels = batch
+            features, class_labels, _ = batch
             outputs = model(features)
-            _, predicted = torch.max(outputs, 1)
-            total += class_labels.size
-            correct += (predicted == class_labels).sum().item()
+            _, predicted = torch.max(outputs, 1)  # Get predicted class indices
+            class_indices = torch.argmax(class_labels, dim=1)  # Convert one-hot labels to class indices
+            total += class_labels.size(0)  # Get batch size
+            correct += (predicted == class_indices).sum().item()  # Compare indices
+            
     test_accuracy = 100 * correct / total
     return test_accuracy
+
 
 def train(model, criterion, optimizer, num_epochs):
     pbar = tqdm(range(num_epochs))
@@ -106,55 +106,66 @@ def train(model, criterion, optimizer, num_epochs):
         total_predictions = 0
         correct_predictions = 0
         for i, batch in enumerate(train_loader):
-            features, class_labels, subclass_labels = batch
+            features, class_labels, _ = batch
             optimizer.zero_grad()
             outputs = model(features)
-            loss = criterion(outputs, class_labels)
+            class_indices = torch.argmax(class_labels, dim=1)
+            loss = criterion(outputs, class_indices)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             total_predictions += class_labels.size(0)
-            correct_predictions += (predicted == class_labels).sum().item()
-            pbar.set_description(f"Epoch {epoch + 1} | Loss: {running_loss / (i + 1):.5f} | Accuracy: {100 * correct_predictions / total_predictions:.2f}%")
-            # if i % 10 == 9:
-            #     print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
-            #     running_loss = 0.0
+            correct_predictions += (predicted == class_indices).sum().item()
+
+            pbar.set_description(f"Epoch {epoch + 1} | Batch {i} | Loss: {running_loss / (i + 1):.5f} | Accuracy: {100 * correct_predictions / total_predictions:.2f}%")
+            if i % 10 == 9:
+                #print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
+                running_loss = 0.0
+            if i == 100: 
+                break
         # test_accuracy = evaluate(model)
         # print('Accuracy on validation set: %.2f' % test_accuracy)
 
 # Model definition
-class CNN(nn.Module):
-    def __init__(self, num_classes):
-        super(CNN, self).__init__()
-
-        self.layer1 = None
+class SimpleFluxCNN(nn.Module):
+    def __init__(self, num_classes=3):
+        super(SimpleFluxCNN, self).__init__()
+        # Use a simple two-layer 1D CNN architecture.
+        # Since we are only using the flux column, the input channel is 1.
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
+        # Adaptive pooling to handle variable-length sequences (max_rows) per batch.
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        # Final fully connected layer to output logits for each class.
+        self.fc = nn.Linear(32, num_classes)
 
     def forward(self, x):
-        out = None
-        return out
+        # x has shape: (batch_size, max_rows, num_features)
+        # Extract the flux column (first column)
+        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        # Add a channel dimension so that the input becomes (batch_size, 1, max_rows)
+        flux = flux.unsqueeze(1)
+        # Pass through the convolutional layers with ReLU activation.
+        out = F.relu(self.conv1(flux))
+        out = F.relu(self.conv2(out))
+        # Apply adaptive average pooling to get a fixed-size output regardless of input length.
+        out = self.pool(out)  # shape: (batch_size, 32, 1)
+        out = out.squeeze(2)  # shape: (batch_size, 32)
+        # Compute the class logits.
+        logits = self.fc(out)  # shape: (batch_size, num_classes)
+        return logits
 
+model = SimpleFluxCNN(num_classes)
+model.train()
+print(torchinfo.summary(model))
 
-
-model = CNN(num_classes)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 train(model, criterion, optimizer, num_epochs) 
+
 test_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % test_accuracy)
 
 
-# def plot_class_distribution(loader, class_categories):
-#     class_counts = torch.zeros(len(class_categories))
-
-#     for batch in loader:
-#         _, class_labels, _  = batch
-#         class_labels = class_labels.argmax(dim=1)
-#         class_counts += torch.bincount(class_labels, minlength=len(class_categories))
-
-#     plt.bar(class_categories, class_counts)
-#     plt.xlabel("Class")
-#     plt.ylabel("Count")
-#     plt.title("Class Distribution")
-#     plt.show()
