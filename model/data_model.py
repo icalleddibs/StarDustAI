@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset, DataLoader, random_split
 from astropy.table import Table, hstack
+from astropy.io import fits
+import pandas as pd
 from astropy.utils.metadata import MergeConflictWarning
 import torch
 import numpy as np
@@ -21,57 +23,106 @@ class FitsDataset(Dataset):
     def __getitem__(self, idx):
         file_path = self.file_paths[idx]
         
-        # Read FITS file as Astropy Table
-        dat1 = Table.read(file_path, format='fits', hdu=1)
-        dat1 = dat1['flux', 'loglam', 'ivar', 'model']
-        dat2 = Table.read(file_path, format='fits', hdu=2)
-        dat2 = dat2['PLATEQUALITY', 'PLATESN2', 'PLATE', 'TILE', 'MJD', 'FIBERID',  'CLASS', "SUBCLASS", 'Z', 'Z_ERR', 'SN_MEDIAN', 'SN_MEDIAN_ALL', 'ZWARNING' , 'RCHI2']
-        data = hstack([dat1, dat2])  # Merge HDUs
-        sn_median_values = np.vstack(data['SN_MEDIAN'])  # Shape: (4590, 5)
+        with fits.open(file_path) as hdul:
+            dat1 = hdul[1].data            
+            dat1 = np.array([dat1['flux'], dat1['loglam'], dat1['ivar'], dat1['model']]).T
+            dat2 = hdul[2].data
+            
+            class_label = dat2['CLASS'][0]
+            subclass_label = dat2['SUBCLASS'][0]
 
-        # Add new columns for each filter
-        data['SN_MEDIAN_UV'] = sn_median_values[:, 0]  # Ultraviolet
-        data['SN_MEDIAN_G'] = sn_median_values[:, 1]   # Green
-        data['SN_MEDIAN_R'] = sn_median_values[:, 2]   # Red
-        data['SN_MEDIAN_NIR'] = sn_median_values[:, 3] # Near-Infrared
-        data['SN_MEDIAN_IR'] = sn_median_values[:, 4]  # Infrared
+            sn_median_values = np.vstack(dat2['SN_MEDIAN'])  # Shape: (4590, 5)
+            sn_median_values = np.pad(sn_median_values, ((0, dat1.shape[0]-1), (0, 0)), 'constant', constant_values=0)
+            
+            plate_quality = dat2['PLATEQUALITY'][0]
+            # map it to a numerical value 
+            if plate_quality not in self.plate_quality_tags:
+                plate_quality = 'nan'
+            plate_quality = self.plate_quality_tags[plate_quality]
+            
+            dat2 = np.array([dat2['PLATESN2'],  
+                 dat2['Z'], dat2['Z_ERR'], 
+                 dat2['ZWARNING'], dat2['RCHI2']]).T
+            dat2 = np.pad(dat2, ((0, dat1.shape[0]-1), (0, 0)), 'constant', constant_values=0)
+            data = np.hstack([dat1, dat2])  # Merge HDUs
+           
 
-        # Remove the original SN_MEDIAN column if needed
-        data.remove_column('SN_MEDIAN')
+            df = pd.DataFrame(data, columns=['flux', 'loglam', 'ivar', 'model', 'PLATESN2', 'Z', 'Z_ERR', 'ZWARNING', 'RCHI2'])
+            
+            df['SN_MEDIAN_UV'] = sn_median_values[:, 0]
+            df['SN_MEDIAN_R'] = sn_median_values[:, 2]
+            df['SN_MEDIAN_NIR'] = sn_median_values[:, 3]
+            df['SN_MEDIAN_IR'] = sn_median_values[:, 4]
+            df['PLATEQUALITY'] = np.array([plate_quality]*dat1.shape[0])
 
-        # Convert Astropy Table to Pandas DataFrame
-        df = data.to_pandas()
+            class_one_hot = np.zeros(len(self.class_categories))
+            class_one_hot[self.class_categories.index(class_label)] = 1
 
-        # Map PLATEQUALITY to numerical values and fill NaNs with same value
-        df['PLATEQUALITY'] = df['PLATEQUALITY'].astype(str).map(self.plate_quality_tags)
-        first_value = df['PLATEQUALITY'].iloc[0]
-        df.fillna(value = {'PLATEQUALITY': first_value}, inplace=True)
+            if subclass_label not in self.subclass_categories:
+                subclass_label = 'nan'
+            
+            subclass_one_hot = np.zeros(len(self.subclass_categories))
+            subclass_one_hot[self.subclass_categories.index(subclass_label)] = 1
+            
+            features = df
+            features = features.fillna(0)
+            features = features.astype(np.float32)
+            features_tensor = torch.tensor(features.values, dtype=torch.float32)
+            class_label_tensor = torch.tensor(class_one_hot, dtype=torch.long)
+            subclass_label_tensor = torch.tensor(subclass_one_hot, dtype=torch.long)
+            return features_tensor, class_label_tensor, subclass_label_tensor
+
+
+        # # Read FITS file as Astropy Table
+        # dat1 = Table.read(file_path, format='fits', hdu=1)
+        # dat1 = dat1['flux', 'loglam', 'ivar', 'model']
+        # dat2 = Table.read(file_path, format='fits', hdu=2)
+        # dat2 = dat2['PLATEQUALITY', 'PLATESN2', 'PLATE', 'TILE', 'MJD', 'FIBERID',  'CLASS', "SUBCLASS", 'Z', 'Z_ERR', 'SN_MEDIAN', 'SN_MEDIAN_ALL', 'ZWARNING' , 'RCHI2']
+        # data = hstack([dat1, dat2])  # Merge HDUs
+        # sn_median_values = np.vstack(data['SN_MEDIAN'])  # Shape: (4590, 5)
+
+        # # Add new columns for each filter
+        # data['SN_MEDIAN_UV'] = sn_median_values[:, 0]  # Ultraviolet
+        # data['SN_MEDIAN_G'] = sn_median_values[:, 1]   # Green
+        # data['SN_MEDIAN_R'] = sn_median_values[:, 2]   # Red
+        # data['SN_MEDIAN_NIR'] = sn_median_values[:, 3] # Near-Infrared
+        # data['SN_MEDIAN_IR'] = sn_median_values[:, 4]  # Infrared
+
+        # # Remove the original SN_MEDIAN column if needed
+        # data.remove_column('SN_MEDIAN')
+
+        # # Convert Astropy Table to Pandas DataFrame
+        # df = data.to_pandas()
+
+        # # Map PLATEQUALITY to numerical values and fill NaNs with same value
+        # df['PLATEQUALITY'] = df['PLATEQUALITY'].astype(str).map(self.plate_quality_tags)
+        # first_value = df['PLATEQUALITY'].iloc[0]
+        # df.fillna(value = {'PLATEQUALITY': first_value}, inplace=True)
        
 
-        # one hot encode class
-        df['CLASS'] = df['CLASS'].astype(str)
-        class_label = df['CLASS'].values[0] 
-        class_one_hot = np.zeros(len(self.class_categories))
-        class_one_hot[self.class_categories.index(class_label)] = 1
+        # # one hot encode class
+        # df['CLASS'] = df['CLASS'].astype(str)
+        # class_label = df['CLASS'].values[0] 
+        # class_one_hot = np.zeros(len(self.class_categories))
+        # class_one_hot[self.class_categories.index(class_label)] = 1
 
-        # one hot encode subclass
-        df['SUBCLASS'] = df['SUBCLASS'].astype(str)
-        subclass_label = df['SUBCLASS'].values[0]
-        if subclass_label not in self.subclass_categories:
-            subclass_label = 'nan'
-        subclass_one_hot = np.zeros(len(self.subclass_categories))
-        subclass_one_hot[self.subclass_categories.index(subclass_label)] = 1
+        # # one hot encode subclass
+        # df['SUBCLASS'] = df['SUBCLASS'].astype(str)
+        # subclass_label = df['SUBCLASS'].values[0]
+        # if subclass_label not in self.subclass_categories:
+        #     subclass_label = 'nan'
+        # subclass_one_hot = np.zeros(len(self.subclass_categories))
+        # subclass_one_hot[self.subclass_categories.index(subclass_label)] = 1
 
-        # Drop class and subclass columns and keep everything else 
-        features = df.drop(columns=['CLASS', 'SUBCLASS'])
-        features = features.fillna(0) 
-        features = features.astype(np.float32) 
+        # # Drop class and subclass columns and keep everything else 
+        # features = df.drop(columns=['CLASS', 'SUBCLASS'])
+        # features = features.fillna(0) 
+        # features = features.astype(np.float32) 
+        # features_tensor = torch.tensor(features.values, dtype=torch.float32)
+        # class_label_tensor = torch.tensor(class_one_hot, dtype=torch.long)
+        # subclass_label_tensor = torch.tensor(subclass_one_hot, dtype=torch.long)
 
-        features_tensor = torch.tensor(features.values, dtype=torch.float32)
-        class_label_tensor = torch.tensor(class_one_hot, dtype=torch.long)
-        subclass_label_tensor = torch.tensor(subclass_one_hot, dtype=torch.long)
-
-        return features_tensor, class_label_tensor, subclass_label_tensor  
+        #return features_tensor, class_label_tensor, subclass_label_tensor  
 
 
 #Custom collate function for padding rows
@@ -88,9 +139,12 @@ def collate_fn(batch):
         padded_f = torch.cat([f, padding], dim=0)
         padded_features.append(padded_f)
 
+    # # Convert class and subclass labels to tensors
+    # class_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in class_labels])
+    # subclass_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in subclass_labels])
     # Convert class and subclass labels to tensors
-    class_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in class_labels])
-    subclass_labels_tensor = torch.stack([torch.tensor(label, dtype=torch.float32) for label in subclass_labels])
+    class_labels_tensor = torch.stack([label.clone().detach().to(torch.float32) for label in class_labels])
+    subclass_labels_tensor = torch.stack([label.clone().detach().to(torch.float32) for label in subclass_labels])
 
     return torch.stack(padded_features), class_labels_tensor, subclass_labels_tensor
 

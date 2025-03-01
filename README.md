@@ -12,6 +12,7 @@ The data is fetched from the SDSS database using the `2_fetch_data.py` script. T
 - Started data exploration
     - Understanding eBOSS experiments and the science behind spectroscopy measurements
     - Selecting variables to utilize (complete)
+    - Exploring balances of different classes and data quality flags to determine data to use in our model
 - Started data preprocessing
     - Removing unwanted variables
     - Creating suitable representation of data
