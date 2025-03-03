@@ -56,7 +56,7 @@ weighted avg       0.90      0.90      0.90       247
 ## Run 3
 - 100 boosts
 - 16217 files from full dataset (except missing 10000)
-- - params = {
+- params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
     'eval_metric': 'mlogloss',
