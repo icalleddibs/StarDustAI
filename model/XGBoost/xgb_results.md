@@ -52,3 +52,30 @@ Classification Report:
     accuracy                           0.90       247
    macro avg       0.92      0.90      0.91       247
 weighted avg       0.90      0.90      0.90       247
+
+## Run 3
+- 100 boosts
+- 16217 files from full dataset (except missing 10000)
+- - params = {
+    'objective': 'multi:softprob',
+    'num_class': len(np.unique(y_encoded)),
+    'eval_metric': 'mlogloss',
+    'max_depth': 6,
+    'eta': 0.05,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'lambda': 1,
+    'seed': 42
+    }
+- results:
+Validation Accuracy: 0.9627
+Classification Report:
+              precision    recall  f1-score   support
+
+   b'GALAXY'       0.94      0.95      0.95      1119
+      b'QSO'       0.97      0.96      0.96      1649
+     b'STAR'       0.99      1.00      1.00       476
+
+    accuracy                           0.96      3244
+   macro avg       0.97      0.97      0.97      3244
+weighted avg       0.96      0.96      0.96      3244
