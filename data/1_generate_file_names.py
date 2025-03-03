@@ -2,7 +2,7 @@ import numpy as np
 import os 
 
 spec_file_name = "speclist.txt"
-nums = np.arange(10227, 10242) 
+#nums = np.arange(10227, 10242) 
 #nums = np.arange(10239, 10242)
 nums =  np.arange(10000, 10001)
 hash_names = []
@@ -40,7 +40,7 @@ def count_files(plate_num):
     return len([name for name in os.listdir(folder) if os.path.isfile(os.path.join(folder, name))])
 
 count = 0
-count += (count_files("data/full/10000/"))
+count += (count_files("data/full/"))
 for i in range(10227, 10242):
     count += ( count_files("data/full/" + str(i) + "/"))
 
