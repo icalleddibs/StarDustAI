@@ -37,11 +37,12 @@ random.shuffle(file_paths)
 dataset = FitsDataset(file_paths)
 
 # Training params 
-batch_size = 32
+batch_size = 64
 num_classes = 3
 num_subclasses = 44
 num_epochs = 1
 learning_rate = 0.001
+patience = 5
 
 # Split dataset into train, validation, and test sets
 train_size = int(0.7 * len(dataset))  
@@ -54,14 +55,6 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, co
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-#train_labels = [label for _, label, _ in train_loader.dataset]
-#train_labels = torch.cat(train_labels, dim=0)
-#print("Train class labels shape:", train_labels.shape)  # (num_samples, 3)
-
-# train_subclass_labels = [label for _, _, label in train_loader.dataset]
-# train_subclass_labels = torch.cat(train_subclass_labels, dim=0)
-# print("Train subclass labels shape:", train_subclass_labels.shape)  # (num_samples, 44)
-
 ## test single file then use print stuff in the class itself 
 # ------
 # # # Create a DataLoader for batch processing
@@ -69,14 +62,11 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
 # first_batch = next(iter(dataloader))
 
-
-
-
-for i, batch in tqdm(enumerate(train_loader)):
-    features, class_labels, subclass_labels = batch
-    print(features.shape, class_labels.shape, features.names)
-    if i == 10: 
-        break 
+# for i, batch in tqdm(enumerate(train_loader)):
+#     features, class_labels, subclass_labels = batch
+#     print(features.shape, class_labels.shape, features.names)
+#     if i == 10: 
+#         break 
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -99,6 +89,8 @@ def evaluate(model):
 
 
 def train(model, criterion, optimizer, num_epochs):
+    #history = {'epoch count: ': [], 'train_loss': [], 'val_loss': [], 'val_accuracy': [], 'train_accuracy': [], 'lr': [], 'patience': []}
+    history =  []
     pbar = tqdm(range(num_epochs))
     for epoch in pbar:
         model.train()
@@ -122,10 +114,37 @@ def train(model, criterion, optimizer, num_epochs):
             if i % 10 == 9:
                 #print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
                 running_loss = 0.0
-            if i == 100: 
-                break
+
+            #history.append({'epoch': epoch,
+                    #'split_part': 'train',
+                    #'lr': learning_rate} | train_results)
+        
         # test_accuracy = evaluate(model)
         # print('Accuracy on validation set: %.2f' % test_accuracy)
+class EarlyStopping:
+    def __init__(self, patience=5, verbose=0.0):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+
+    def __call__(self, val_loss, model):
+        score = -val_loss
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0
+
+early_stopping = EarlyStopping(patience=patience, verbose=True)
+
 
 # Model definition
 class SimpleFluxCNN(nn.Module):
@@ -165,7 +184,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 train(model, criterion, optimizer, num_epochs) 
 
-test_accuracy = evaluate(model)
-print('Accuracy on validation set: %.2f' % test_accuracy)
+val_accuracy = evaluate(model)
+print('Accuracy on validation set: %.2f' % val_accuracy)
 
 
