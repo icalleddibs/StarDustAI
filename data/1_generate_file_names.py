@@ -40,7 +40,7 @@ def count_files(plate_num):
     return len([name for name in os.listdir(folder) if os.path.isfile(os.path.join(folder, name))])
 
 count = 0
-count += (count_files("data/full/"))
+count += ( count_files("data/full/" + str(10000) + "/"))
 for i in range(10227, 10242):
     count += ( count_files("data/full/" + str(i) + "/"))
 
