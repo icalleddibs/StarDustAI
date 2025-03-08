@@ -54,6 +54,7 @@ Classification Report:
 weighted avg       0.90      0.90      0.90       247
 
 ## Run 3
+Official run used to represent the baseline model
 - 100 boosts
 - 16217 files from full dataset (except missing 10000)
 - params = {
