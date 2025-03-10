@@ -58,10 +58,13 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, co
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
+
+#Count number of parameters in the model
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
+# Print classification report to show key metrics
 def evaluate_metrics(model, dataloader, class_names):
     print("evaluating metrics...")
     model.eval()
@@ -81,6 +84,7 @@ def evaluate_metrics(model, dataloader, class_names):
     report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=1)
     print(report)
 
+# Plot confusion matrix
 def plot_confusion_matrix(model, dataloader, class_names):
     print("plotting confusion matrix...")
     model.eval()
@@ -109,7 +113,7 @@ def plot_confusion_matrix(model, dataloader, class_names):
     plt.title('Confusion Matrix')
     plt.show()
 
-
+# Calculate validation accuracy 
 def evaluate(model): 
     print("calculating valiudation accuracy...")
     model.eval()
@@ -127,7 +131,7 @@ def evaluate(model):
     validation_accuracy = 100 * correct / total
     return validation_accuracy
 
-
+# Train the model
 def train(model, criterion, optimizer, num_epochs):
     pbar = tqdm(range(num_epochs))
     for epoch in pbar:
@@ -152,6 +156,7 @@ def train(model, criterion, optimizer, num_epochs):
             if i % 10 == 9:
                 running_loss = 0.0
 
+# Early stopping class, not currently used. 
 class EarlyStopping:
     def __init__(self, patience=5, verbose=0.0):
         self.patience = patience
@@ -181,13 +186,10 @@ early_stopping = EarlyStopping(patience=patience, verbose=True)
 class SimpleFluxCNN(nn.Module):
     def __init__(self, num_classes=3):
         super(SimpleFluxCNN, self).__init__()
-        # Use a simple two-layer 1D CNN architecture.
         # Since we are only using the flux column, the input channel is 1.
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
-        # Adaptive pooling to handle variable-length sequences (max_rows) per batch.
         self.pool = nn.AdaptiveAvgPool1d(1)
-        # Final fully connected layer to output logits for each class.
         self.fc = nn.Linear(32, num_classes)
 
     def forward(self, x):
@@ -219,7 +221,6 @@ train(model, criterion, optimizer, num_epochs)
 
 val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
-
 
 class_names = ["Galaxy", "Quasar", "Star"]
 plot_confusion_matrix(model, test_loader, class_names)
