@@ -204,3 +204,4 @@ val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
 
 evaluate_metrics(model, test_loader, class_names)
+
