@@ -1,17 +1,10 @@
-from torch.utils.data import Dataset, DataLoader, random_split
-from astropy.table import Table, hstack
-from astropy.io import fits
-import pandas as pd
-from astropy.utils.metadata import MergeConflictWarning
+from torch.utils.data import Dataset
 import torch
 import numpy as np
 import pickle as pkl
-import warnings
-warnings.simplefilter('ignore', MergeConflictWarning)
 
 
 class SepctraDataset(Dataset): 
-
     def __init__(self, file_paths):
         self.file_paths = file_paths
         self.class_categories = ['STAR', 'GALAXY', 'QSO']
