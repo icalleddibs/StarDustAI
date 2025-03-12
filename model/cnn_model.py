@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
-from data_model import FitsDataset, collate_fn
+from data_model2 import SepctraDataset, collate_fn
 
 # Scientific Python 
 import numpy as np
@@ -26,18 +26,18 @@ from sklearn.metrics import confusion_matrix, classification_report
 # List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-base_dir = os.path.join(repo_root, "data/full")
-file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
+base_dir = os.path.join(repo_root, "data/full_zwarning")
+file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
 
 # If no FITS files are found, raise an error
 if not file_paths:
-    raise ValueError("No FITS files found in 'data/full/'")
+    raise ValueError("No FITS files found in 'data/full_zwarning/'")
 
 # Shuffle the file paths
 random.shuffle(file_paths)
 
 # Load the dataset
-dataset = FitsDataset(file_paths)
+dataset = SepctraDataset(file_paths)
 
 # Training params 
 batch_size = 64
@@ -54,9 +54,28 @@ test_size = len(dataset) - train_size - val_size
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
 # Create DataLoaders with the updated collate function
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, pin_memory=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+train_loader = DataLoader(train_dataset, batch_size=batch_size,collate_fn=collate_fn ,shuffle=True, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size,collate_fn=collate_fn, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn,shuffle=False)
+
+labels = ['STAR', 'GALAXY', 'QSO']
+galaxy_count = 0
+quasar_count = 0
+star_count = 0
+
+# for i in tqdm(range(len(dataset))):
+#     features, class_labels = dataset[i]
+#     class_indices = torch.argmax(class_labels)
+    
+#     class_label = labels[class_indices]
+#     print(class_label, class_indices)
+#     # if class_label == 'GALAXY':
+#     #     galaxy_count += 1
+#     # elif class_label == 'QSO':
+#     #     quasar_count += 1
+#     # elif class_label == 'STAR':
+#     #     star_count += 1
+
 
 
 #Count number of parameters in the model
@@ -72,7 +91,7 @@ def evaluate_metrics(model, dataloader, class_names):
     all_labels = []
     with torch.no_grad():
         for batch in tqdm(val_loader):
-            features, class_labels, _ = batch
+            features, class_labels = batch
             outputs = model(features)
             _, predicted = torch.max(outputs, 1)
             class_indices = torch.argmax(class_labels, dim=1)
@@ -94,7 +113,7 @@ def plot_confusion_matrix(model, dataloader, class_names):
     with torch.no_grad():
         #use tqdm to show a progress bar
         for batch in tqdm(val_loader):
-            features, class_labels, _ = batch
+            features, class_labels = batch
             outputs = model(features)
             _, predicted = torch.max(outputs, 1)
             class_indices = torch.argmax(class_labels, dim=1)
@@ -121,7 +140,7 @@ def evaluate(model):
     total = 0
     with torch.no_grad():
         for batch in val_loader:
-            features, class_labels, _ = batch
+            features, class_labels = batch
             outputs = model(features)
             _, predicted = torch.max(outputs, 1)  # Get predicted class indices
             class_indices = torch.argmax(class_labels, dim=1)  # Convert one-hot labels to class indices
@@ -140,7 +159,7 @@ def train(model, criterion, optimizer, num_epochs):
         total_predictions = 0
         correct_predictions = 0
         for i, batch in enumerate(train_loader):
-            features, class_labels, _ = batch
+            features, class_labels = batch
             optimizer.zero_grad()
             outputs = model(features)
             class_indices = torch.argmax(class_labels, dim=1)
@@ -222,6 +241,6 @@ train(model, criterion, optimizer, num_epochs)
 val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
 
-class_names = ["Galaxy", "Quasar", "Star"]
+class_names = ['STAR', 'GALAXY', 'QSO']
 plot_confusion_matrix(model, test_loader, class_names)
 evaluate_metrics(model, test_loader, class_names)
