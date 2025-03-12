@@ -1,8 +1,8 @@
 import glob
 import os 
-import subprocess
 from tqdm import tqdm 
 import matplotlib.pyplot as plt
+import time  
 
 # XGBoost
 import xgboost as xgb
@@ -12,10 +12,14 @@ from sklearn.preprocessing import LabelEncoder
 
 # Scientific Python 
 from astropy.table import Table
+from astropy.io import fits
 import numpy as np
 
-repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-base_dir = os.path.join(repo_root, "data/full/")
+# repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+# base_dir = os.path.join(repo_root, "data/full/")
+# file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
+
+base_dir = "E:/StarDustAI/full"
 file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
 
 # If no FITS files are found, raise an error
@@ -32,6 +36,21 @@ max_length = 4615 # For the padding
 
 # Loop through each file and extract data
 for file_path in file_paths:
+    
+    # check for missing
+    with fits.open(file_path) as hdul:
+        if len(hdul) <= 1:  # If HDU 2 doesn't exist, skip this file
+            print(f"Skipping {file_path}: HDU 1 not found.")
+            continue
+        
+    with fits.open(file_path) as hdul:
+        if len(hdul) <= 2:  # If HDU 2 doesn't exist, skip this file
+            print(f"Skipping {file_path}: HDU 2 not found.")
+            continue
+        
+    # ERRORS:
+    # 10227/spec-10227-58224-0419.fits - HDU 2 not found
+    
     # Read FITS file
     dat1 = Table.read(file_path, format='fits', hdu=1)  # HDU 1
     dat2 = Table.read(file_path, format='fits', hdu=2)  # HDU 2
@@ -65,27 +84,31 @@ for file_path in file_paths:
     sn_median_nir = sn_median[:, 3] # Near-Infrared
     sn_median_ir = sn_median[:, 4]  # Infrared
     
-    # PADDING
-    # Ensure all columns have the same length
-    flux = np.pad(flux, (0, max_length - len(flux)), mode='constant')
-    loglam = np.pad(loglam, (0, max_length - len(loglam)), mode='constant')
-    ivar = np.pad(ivar, (0, max_length - len(ivar)), mode='constant')
-    model = np.pad(model, (0, max_length - len(model)), mode='constant')
-    platequality = np.pad(platequality, (0, max_length - len(platequality)), mode='constant')
-    platesn2 = np.pad(platesn2, (0, max_length - len(platesn2)), mode='constant')
-    plate = np.pad(plate, (0, max_length - len(plate)), mode='constant')
-    tile = np.pad(tile, (0, max_length - len(tile)), mode='constant')
-    mjd = np.pad(mjd, (0, max_length - len(mjd)), mode='constant')
-    fiberid = np.pad(fiberid, (0, max_length - len(fiberid)), mode='constant')
-    z = np.pad(z, (0, max_length - len(z)), mode='constant')
-    z_err = np.pad(z_err, (0, max_length - len(z_err)), mode='constant')
-    sn_median_uv = np.pad(sn_median_uv, (0, max_length - len(sn_median_uv)), mode='constant')
-    sn_median_g = np.pad(sn_median_g, (0, max_length - len(sn_median_g)), mode='constant')
-    sn_median_r = np.pad(sn_median_r, (0, max_length - len(sn_median_r)), mode='constant')
-    sn_median_nir = np.pad(sn_median_nir, (0, max_length - len(sn_median_nir)), mode='constant')
-    sn_median_ir = np.pad(sn_median_ir, (0, max_length - len(sn_median_ir)), mode='constant')
-    zwarning = np.pad(zwarning, (0, max_length - len(zwarning)), mode='constant')
-    rchi2 = np.pad(rchi2, (0, max_length - len(rchi2)), mode='constant')
+    def pad_or_truncate(array, max_length):
+        if len(array) > max_length:
+            return array[:max_length]  # Truncate if too long
+        return np.pad(array, (0, max_length - len(array)), mode='constant')  # Pad if too short
+
+    # Apply the function to all arrays
+    flux = pad_or_truncate(flux, max_length)
+    loglam = pad_or_truncate(loglam, max_length)
+    ivar = pad_or_truncate(ivar, max_length)
+    model = pad_or_truncate(model, max_length)
+    platequality = pad_or_truncate(platequality, max_length)
+    platesn2 = pad_or_truncate(platesn2, max_length)
+    plate = pad_or_truncate(plate, max_length)
+    tile = pad_or_truncate(tile, max_length)
+    mjd = pad_or_truncate(mjd, max_length)
+    fiberid = pad_or_truncate(fiberid, max_length)
+    z = pad_or_truncate(z, max_length)
+    z_err = pad_or_truncate(z_err, max_length)
+    sn_median_uv = pad_or_truncate(sn_median_uv, max_length)
+    sn_median_g = pad_or_truncate(sn_median_g, max_length)
+    sn_median_r = pad_or_truncate(sn_median_r, max_length)
+    sn_median_nir = pad_or_truncate(sn_median_nir, max_length)
+    sn_median_ir = pad_or_truncate(sn_median_ir, max_length)
+    zwarning = pad_or_truncate(zwarning, max_length)
+    rchi2 = pad_or_truncate(rchi2, max_length)
 
     # Combine all features into a single array
     # TOOK OUT PLATE QUALITY, platesn2, plate, tile, mjd, fiberid
@@ -102,8 +125,8 @@ for file_path in file_paths:
     y.append(class_label)  # Assuming class_label is the target
     #print(class_label)
     
-    i = i + 1
-    print("APPENDED ", i)
+    #i = i + 1
+    #print("APPENDED ", i)
     
 # Check the shape of each sample because I was having issues
 shapes = [sample.shape for sample in X]
@@ -141,7 +164,9 @@ params = {
 }
 
 # Train the model, can modify
-num_rounds = 100
+num_rounds = 50
+
+start_time = time.time()
 
 # Custom callback to update tqdm progress bar
 class TQDMProgressBar(xgb.callback.TrainingCallback):
@@ -168,6 +193,13 @@ bst = xgb.train(
     callbacks=[progress_bar]       # Update the progress bar
 )
 
+
+# Record end time and calculate total time taken
+end_time = time.time()
+training_time = end_time - start_time
+print(f"Training time: {training_time:.2f} seconds")
+
+
 # Evaluate the model
 y_pred = bst.predict(dval)
 y_pred_labels = np.argmax(y_pred, axis=1)  # Convert probabilities to class labels
@@ -190,4 +222,33 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.
 disp.plot(cmap=plt.cm.Blues)
 
 # Show the plot
+plt.show()
+
+
+# PROBLEMS ------------------------------------------------------------------------------
+# Traceback (most recent call last):
+#   File "c:\Users\diba\StarDustAI\model\XGBoost\xgboost_model.py", line 229, in <module>
+#     booster = bst.get_booster()
+#               ^^^^^^^^^^^^^^^
+# AttributeError: 'Booster' object has no attribute 'get_booster'
+
+
+# Get the booster and plot feature importance
+booster = bst.get_booster()
+
+# Get the feature importance
+feature_importance = booster.get_score(importance_type='weight')
+
+# Sort feature importance
+sorted_feature_importance = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+
+# Extract sorted feature names and importance values
+features_names = [name for name, _ in sorted_feature_importance]
+importance_values = [importance for _, importance in sorted_feature_importance]
+
+# Plot feature importance
+plt.figure(figsize=(10, 6))
+plt.barh(features_names, importance_values, color='skyblue')
+plt.xlabel('Importance')
+plt.title('Feature Importance')
 plt.show()
