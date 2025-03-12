@@ -16,9 +16,12 @@ from data_model import FitsDataset, collate_fn
 # Scientific Python 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd 
 import plotly as px 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report
+
 
 # List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
@@ -55,23 +58,64 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, co
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-## test single file then use print stuff in the class itself 
-# ------
-# # # Create a DataLoader for batch processing
-# dataloader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
-# train_loader = DataLoader(FitsDataset(file_paths), batch_size=1, shuffle=True)
-# first_batch = next(iter(dataloader))
 
-# for i, batch in tqdm(enumerate(train_loader)):
-#     features, class_labels, subclass_labels = batch
-#     print(features.shape, class_labels.shape, features.names)
-#     if i == 10: 
-#         break 
-
+#Count number of parameters in the model
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+
+# Print classification report to show key metrics
+def evaluate_metrics(model, dataloader, class_names):
+    print("evaluating metrics...")
+    model.eval()
+    all_preds = []
+    all_labels = []
+    with torch.no_grad():
+        for batch in tqdm(val_loader):
+            features, class_labels, _ = batch
+            outputs = model(features)
+            _, predicted = torch.max(outputs, 1)
+            class_indices = torch.argmax(class_labels, dim=1)
+            
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(class_indices.cpu().numpy())
+
+    # Generate classification report
+    report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=1)
+    print(report)
+
+# Plot confusion matrix
+def plot_confusion_matrix(model, dataloader, class_names):
+    print("plotting confusion matrix...")
+    model.eval()
+    all_preds = []
+    all_labels = []
+    
+    with torch.no_grad():
+        #use tqdm to show a progress bar
+        for batch in tqdm(val_loader):
+            features, class_labels, _ = batch
+            outputs = model(features)
+            _, predicted = torch.max(outputs, 1)
+            class_indices = torch.argmax(class_labels, dim=1)
+            
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(class_indices.cpu().numpy())
+
+    # Compute confusion matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    
+    # Plot the confusion matrix
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix')
+    plt.show()
+
+# Calculate validation accuracy 
 def evaluate(model): 
+    print("calculating valiudation accuracy...")
     model.eval()
     correct = 0
     total = 0
@@ -84,13 +128,11 @@ def evaluate(model):
             total += class_labels.size(0)  # Get batch size
             correct += (predicted == class_indices).sum().item()  # Compare indices
             
-    test_accuracy = 100 * correct / total
-    return test_accuracy
+    validation_accuracy = 100 * correct / total
+    return validation_accuracy
 
-
+# Train the model
 def train(model, criterion, optimizer, num_epochs):
-    #history = {'epoch count: ': [], 'train_loss': [], 'val_loss': [], 'val_accuracy': [], 'train_accuracy': [], 'lr': [], 'patience': []}
-    history =  []
     pbar = tqdm(range(num_epochs))
     for epoch in pbar:
         model.train()
@@ -112,15 +154,9 @@ def train(model, criterion, optimizer, num_epochs):
 
             pbar.set_description(f"Epoch {epoch + 1} | Batch {i} | Loss: {running_loss / (i + 1):.5f} | Accuracy: {100 * correct_predictions / total_predictions:.2f}%")
             if i % 10 == 9:
-                #print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
                 running_loss = 0.0
 
-            #history.append({'epoch': epoch,
-                    #'split_part': 'train',
-                    #'lr': learning_rate} | train_results)
-        
-        # test_accuracy = evaluate(model)
-        # print('Accuracy on validation set: %.2f' % test_accuracy)
+# Early stopping class, not currently used. 
 class EarlyStopping:
     def __init__(self, patience=5, verbose=0.0):
         self.patience = patience
@@ -150,13 +186,10 @@ early_stopping = EarlyStopping(patience=patience, verbose=True)
 class SimpleFluxCNN(nn.Module):
     def __init__(self, num_classes=3):
         super(SimpleFluxCNN, self).__init__()
-        # Use a simple two-layer 1D CNN architecture.
         # Since we are only using the flux column, the input channel is 1.
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
-        # Adaptive pooling to handle variable-length sequences (max_rows) per batch.
         self.pool = nn.AdaptiveAvgPool1d(1)
-        # Final fully connected layer to output logits for each class.
         self.fc = nn.Linear(32, num_classes)
 
     def forward(self, x):
@@ -175,8 +208,10 @@ class SimpleFluxCNN(nn.Module):
         logits = self.fc(out)  # shape: (batch_size, num_classes)
         return logits
 
+
+### Training and evaluation 
 model = SimpleFluxCNN(num_classes)
-model.train()
+model.train() 
 print(torchinfo.summary(model))
 
 criterion = nn.CrossEntropyLoss()
@@ -187,4 +222,6 @@ train(model, criterion, optimizer, num_epochs)
 val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
 
-
+class_names = ["Galaxy", "Quasar", "Star"]
+plot_confusion_matrix(model, test_loader, class_names)
+evaluate_metrics(model, test_loader, class_names)
