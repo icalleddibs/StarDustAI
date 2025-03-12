@@ -54,7 +54,6 @@ Classification Report:
 weighted avg       0.90      0.90      0.90       247
 
 ## Run 3
-Official run used to represent the baseline model
 - 100 boosts
 - 16217 files from full dataset (except missing 10000)
 - params = {
@@ -80,3 +79,32 @@ Classification Report:
     accuracy                           0.96      3244
    macro avg       0.97      0.97      0.97      3244
 weighted avg       0.96      0.96      0.96      3244
+
+## Run 4
+Official run used to represent the baseline model
+- 50 boosts
+- full dataset
+- params = {
+    'objective': 'multi:softprob',
+    'num_class': len(np.unique(y_encoded)),
+    'eval_metric': 'mlogloss',
+    'max_depth': 6,
+    'eta': 0.05,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'lambda': 1,
+    'seed': 42
+    }
+- results:
+Training time: 532.45 seconds
+Validation Accuracy: 0.9575
+Classification Report:
+              precision    recall  f1-score   support
+
+   b'GALAXY'       0.94      0.95      0.94      1417
+      b'QSO'       0.97      0.95      0.96      2002
+     b'STAR'       0.98      1.00      0.99       578
+
+    accuracy                           0.96      3997
+   macro avg       0.96      0.97      0.96      3997
+weighted avg       0.96      0.96      0.96      3997
