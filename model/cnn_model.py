@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
-from data_model2 import SepctraDataset, collate_fn
+from data_model import SepctraDataset, collate_fn
 
 # Scientific Python 
 import numpy as np
@@ -47,6 +47,8 @@ num_epochs = 1
 learning_rate = 0.001
 patience = 5
 
+class_names = ['STAR', 'GALAXY', 'QSO']
+
 # Split dataset into train, validation, and test sets
 train_size = int(0.7 * len(dataset))  
 val_size = int(0.15 * len(dataset))    
@@ -57,31 +59,6 @@ train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, va
 train_loader = DataLoader(train_dataset, batch_size=batch_size,collate_fn=collate_fn ,shuffle=True, pin_memory=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size,collate_fn=collate_fn, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn,shuffle=False)
-
-labels = ['STAR', 'GALAXY', 'QSO']
-galaxy_count = 0
-quasar_count = 0
-star_count = 0
-
-# for i in tqdm(range(len(dataset))):
-#     features, class_labels = dataset[i]
-#     class_indices = torch.argmax(class_labels)
-    
-#     class_label = labels[class_indices]
-#     print(class_label, class_indices)
-#     # if class_label == 'GALAXY':
-#     #     galaxy_count += 1
-#     # elif class_label == 'QSO':
-#     #     quasar_count += 1
-#     # elif class_label == 'STAR':
-#     #     star_count += 1
-
-
-
-#Count number of parameters in the model
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
 
 # Print classification report to show key metrics
 def evaluate_metrics(model, dataloader, class_names):
@@ -103,27 +80,29 @@ def evaluate_metrics(model, dataloader, class_names):
     report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=1)
     print(report)
 
-# Plot confusion matrix
-def plot_confusion_matrix(model, dataloader, class_names):
-    print("plotting confusion matrix...")
+# Calculate validation accuracy and plot confusion matrix
+def evaluate(model): 
+    print("calculating validation accuracy...")
     model.eval()
+    correct = 0
+    total = 0
     all_preds = []
     all_labels = []
-    
     with torch.no_grad():
-        #use tqdm to show a progress bar
         for batch in tqdm(val_loader):
             features, class_labels = batch
             outputs = model(features)
-            _, predicted = torch.max(outputs, 1)
-            class_indices = torch.argmax(class_labels, dim=1)
-            
+            _, predicted = torch.max(outputs, 1)  # Get predicted class indices
+            class_indices = torch.argmax(class_labels, dim=1)  # Convert one-hot labels to class indices
+            total += class_labels.size(0)  # Get batch size
+            correct += (predicted == class_indices).sum().item()  # Compare indices
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(class_indices.cpu().numpy())
 
-    # Compute confusion matrix
+    validation_accuracy = 100 * correct / total
+
+    print("Plotting confusion matrix...")
     cm = confusion_matrix(all_labels, all_preds)
-    
     # Plot the confusion matrix
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=class_names, yticklabels=class_names)
@@ -131,23 +110,6 @@ def plot_confusion_matrix(model, dataloader, class_names):
     plt.ylabel('True Label')
     plt.title('Confusion Matrix')
     plt.show()
-
-# Calculate validation accuracy 
-def evaluate(model): 
-    print("calculating valiudation accuracy...")
-    model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for batch in val_loader:
-            features, class_labels = batch
-            outputs = model(features)
-            _, predicted = torch.max(outputs, 1)  # Get predicted class indices
-            class_indices = torch.argmax(class_labels, dim=1)  # Convert one-hot labels to class indices
-            total += class_labels.size(0)  # Get batch size
-            correct += (predicted == class_indices).sum().item()  # Compare indices
-            
-    validation_accuracy = 100 * correct / total
     return validation_accuracy
 
 # Train the model
@@ -241,6 +203,4 @@ train(model, criterion, optimizer, num_epochs)
 val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
 
-class_names = ['STAR', 'GALAXY', 'QSO']
-plot_confusion_matrix(model, test_loader, class_names)
 evaluate_metrics(model, test_loader, class_names)
