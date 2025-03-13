@@ -81,7 +81,6 @@ Classification Report:
 weighted avg       0.96      0.96      0.96      3244
 
 ## Run 4
-Official run used to represent the baseline model
 - 50 boosts
 - full dataset
 - params = {
@@ -108,3 +107,33 @@ Classification Report:
     accuracy                           0.96      3997
    macro avg       0.96      0.97      0.96      3997
 weighted avg       0.96      0.96      0.96      3997
+
+## Run 5
+Official run used to represent the baseline model
+- 100 boosts
+- full dataset
+- params = {
+    'objective': 'multi:softprob',
+    'num_class': len(np.unique(y_encoded)),
+    'eval_metric': 'mlogloss',
+    'max_depth': 6,
+    'eta': 0.05,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'lambda': 0.8,
+    'seed': 42
+    }
+- results:
+- Training time: 1042.08 seconds
+Validation Accuracy: 0.9557
+Classification Report:
+              precision    recall  f1-score   support
+
+   b'GALAXY'       0.93      0.94      0.94      1417
+      b'QSO'       0.97      0.95      0.96      2002
+     b'STAR'       0.98      1.00      0.99       578
+
+    accuracy                           0.96      3997
+   macro avg       0.96      0.96      0.96      3997
+weighted avg       0.96      0.96      0.96      3997
+- **attempted feature importance but the XGB library didn't seem to work. will run again to test and use the new data loader.**
