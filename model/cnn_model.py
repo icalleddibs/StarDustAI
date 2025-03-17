@@ -3,6 +3,7 @@ import random
 import os 
 import subprocess
 from tqdm import tqdm 
+from datetime import date
 
 # Deep Learning
 import torch
@@ -39,11 +40,12 @@ random.shuffle(file_paths)
 # Load the dataset
 dataset = SepctraDataset(file_paths)
 
+
 # Training params 
-batch_size = 64
-num_classes = 3
+BATCH_SIZE = 64
+NUM_CLASSES = 3
 num_subclasses = 44
-num_epochs = 1
+NUM_EPOCHS = 1
 learning_rate = 0.001
 patience = 5
 
@@ -56,12 +58,33 @@ test_size = len(dataset) - train_size - val_size
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
 # Create DataLoaders with the updated collate function
-train_loader = DataLoader(train_dataset, batch_size=batch_size,collate_fn=collate_fn ,shuffle=True, pin_memory=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size,collate_fn=collate_fn, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn,shuffle=False)
+# Create DataLoaders with the updated collate function
+train_loader = DataLoader(
+    train_dataset, batch_size=BATCH_SIZE,
+    collate_fn=collate_fn, shuffle=True, pin_memory=True
+)
+val_loader = DataLoader(
+    val_dataset, batch_size=BATCH_SIZE,
+    collate_fn=collate_fn, shuffle=False
+)
+test_loader = DataLoader(
+    test_dataset, batch_size=BATCH_SIZE,
+    collate_fn=collate_fn, shuffle=False
+)
 
-# Print classification report to show key metrics
 def evaluate_metrics(model, dataloader, class_names):
+    """
+    Evaluate and print classification metrics.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained model.
+    dataloader : DataLoader
+        DataLoader for evaluation data.
+    class_names : list of str
+        List of class names.
+    """
     print("evaluating metrics...")
     model.eval()
     all_preds = []
@@ -77,11 +100,27 @@ def evaluate_metrics(model, dataloader, class_names):
             all_labels.extend(class_indices.cpu().numpy())
 
     # Generate classification report
-    report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=1)
+    report = classification_report(
+        all_labels, all_preds,
+        target_names=class_names,
+        zero_division=1
+    )
     print(report)
 
-# Calculate validation accuracy and plot confusion matrix
 def evaluate(model): 
+    """
+    Calculate validation accuracy and plot confusion matrix.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The trained model.
+
+    Returns
+    -------
+    float
+        Validation accuracy in percentage.
+    """
     print("calculating validation accuracy...")
     model.eval()
     correct = 0
@@ -92,10 +131,10 @@ def evaluate(model):
         for batch in tqdm(val_loader):
             features, class_labels = batch
             outputs = model(features)
-            _, predicted = torch.max(outputs, 1)  # Get predicted class indices
-            class_indices = torch.argmax(class_labels, dim=1)  # Convert one-hot labels to class indices
-            total += class_labels.size(0)  # Get batch size
-            correct += (predicted == class_indices).sum().item()  # Compare indices
+            _, predicted = torch.max(outputs, 1) 
+            class_indices = torch.argmax(class_labels, dim=1)  
+            total += class_labels.size(0)  
+            correct += (predicted == class_indices).sum().item() 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(class_indices.cpu().numpy())
 
@@ -112,9 +151,22 @@ def evaluate(model):
     plt.show()
     return validation_accuracy
 
-# Train the model
-def train(model, criterion, optimizer, num_epochs):
-    pbar = tqdm(range(num_epochs))
+def train(model, criterion, optimizer, NUM_EPOCHS):
+    """
+    Train the model.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to train.
+    criterion : torch.nn.Module
+        Loss function.
+    optimizer : torch.optim.Optimizer
+        Optimizer.
+    num_epochs : int
+        Number of epochs to train for.
+    """
+    pbar = tqdm(range(NUM_EPOCHS))
     for epoch in pbar:
         model.train()
         running_loss = 0.0
@@ -133,12 +185,18 @@ def train(model, criterion, optimizer, num_epochs):
             total_predictions += class_labels.size(0)
             correct_predictions += (predicted == class_indices).sum().item()
 
-            pbar.set_description(f"Epoch {epoch + 1} | Batch {i} | Loss: {running_loss / (i + 1):.5f} | Accuracy: {100 * correct_predictions / total_predictions:.2f}%")
+            pbar.set_description(
+                f"Epoch {epoch + 1} | Batch {i} "
+                f"| Loss: {running_loss / (i + 1):.5f} "
+                f"| Accuracy: {100 * correct_predictions / total_predictions:.2f}%"
+            )
             if i % 10 == 9:
                 running_loss = 0.0
 
-# Early stopping class, not currently used. 
 class EarlyStopping:
+    """
+    Early stopping to stop training when validation loss stops improving.
+    """
     def __init__(self, patience=5, verbose=0.0):
         self.patience = patience
         self.verbose = verbose
@@ -163,15 +221,18 @@ class EarlyStopping:
 early_stopping = EarlyStopping(patience=patience, verbose=True)
 
 
-# Model definition
 class SimpleFluxCNN(nn.Module):
-    def __init__(self, num_classes=3):
+    """
+    Simple CNN model for flux-based classification.
+    """
+
+    def __init__(self, NUM_CLASSES=3):
         super(SimpleFluxCNN, self).__init__()
         # Since we are only using the flux column, the input channel is 1.
         self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.pool = nn.AdaptiveAvgPool1d(1)
-        self.fc = nn.Linear(32, num_classes)
+        self.fc = nn.Linear(32, NUM_CLASSES)
 
     def forward(self, x):
         # x has shape: (batch_size, max_rows, num_features)
@@ -191,17 +252,33 @@ class SimpleFluxCNN(nn.Module):
 
 
 ### Training and evaluation 
-model = SimpleFluxCNN(num_classes)
+model = SimpleFluxCNN(NUM_CLASSES)
 model.train() 
 print(torchinfo.summary(model))
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-train(model, criterion, optimizer, num_epochs) 
+train(model, criterion, optimizer, NUM_EPOCHS) 
 
 val_accuracy = evaluate(model)
 print('Accuracy on validation set: %.2f' % val_accuracy)
 
 evaluate_metrics(model, test_loader, class_names)
+
+
+
+# save and log 
+torch.save(model.state_dict(), 'cnn_saved_models/' + str(date.today()) +  'model.pth')
+#log hyper params 
+
+
+
+# load the model 
+# model2= SimpleFluxCNN(num_classes)
+# model2.load_state_dict(torch.load('cnn_saved_models/model.pth'))
+
+# model2.eval()
+# val_accuracy = evaluate(model2)
+
 
