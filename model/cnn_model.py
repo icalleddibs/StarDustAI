@@ -3,7 +3,7 @@ import random
 import os 
 import subprocess
 from tqdm import tqdm 
-from datetime import date
+from datetime import datetime
 
 # Deep Learning
 import torch
@@ -22,6 +22,7 @@ import pandas as pd
 import plotly as px 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
+
 
 
 # List all FITS files
@@ -142,9 +143,15 @@ def evaluate(model):
 
     print("Plotting confusion matrix...")
     cm = confusion_matrix(all_labels, all_preds)
+
+    # Reorder matrix to match ['GALAXY', 'QSO', 'STAR']
+    reorder = [1, 2, 0]  # indices for ['GALAXY', 'QSO', 'STAR']
+    cm = cm[reorder][:, reorder]
+    new_class_names = ['GALAXY', 'QSO', 'STAR']
+
     # Plot the confusion matrix
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=class_names, yticklabels=class_names)
+    sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=new_class_names, yticklabels=new_class_names)
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.title('Confusion Matrix')
@@ -167,11 +174,15 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
         Number of epochs to train for.
     """
     pbar = tqdm(range(NUM_EPOCHS))
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+
     for epoch in pbar:
         model.train()
         running_loss = 0.0
         total_predictions = 0
         correct_predictions = 0
+
+        # Training loop
         for i, batch in enumerate(train_loader):
             features, class_labels = batch
             optimizer.zero_grad()
@@ -185,13 +196,70 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
             total_predictions += class_labels.size(0)
             correct_predictions += (predicted == class_indices).sum().item()
 
+            # Update progress bar
             pbar.set_description(
-                f"Epoch {epoch + 1} | Batch {i} "
+                f"Epoch {epoch + 1} | Batch {i + 1} "
                 f"| Loss: {running_loss / (i + 1):.5f} "
                 f"| Accuracy: {100 * correct_predictions / total_predictions:.2f}%"
             )
-            if i % 10 == 9:
-                running_loss = 0.0
+
+        # Calculate validation loss after each epoch
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for features, class_labels in val_loader:
+                outputs = model(features)
+                class_indices = torch.argmax(class_labels, dim=1)
+                loss = criterion(outputs, class_indices)
+                val_loss += loss.item()
+        val_loss /= len(val_loader)
+
+        # Early stopping check
+        early_stopping(val_loss, model)
+        if early_stopping.early_stop:
+            print("Early stopping triggered.")
+            break
+
+
+def save_model(model):
+    """
+    Save the model to a file.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to save.
+    model_path : str
+        Path to save the model to.
+    """
+    # save and log 
+    save_dir = 'cnn_saved_models'
+    os.makedirs(save_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    model_path = os.path.join(save_dir, f'{timestamp}_model.pth')
+    torch.save(model.state_dict(), model_path)
+    #log hyper params 
+    hyperparams = {
+        'learning_rate': learning_rate,
+        'batch_size': BATCH_SIZE,
+        'num_epochs': NUM_EPOCHS,
+        'patience': patience,
+        'num_classes': NUM_CLASSES,
+        'train_size': train_size,
+        'val_size': val_size,
+        'test_size': test_size,
+        'validation_accuracy': val_accuracy
+    }
+
+    hyperparams_path = os.path.join(save_dir, f'{timestamp}_hyperparams.txt')
+    with open(hyperparams_path, 'w') as f:
+        f.write("Hyperparameters and Results:\n")
+        for key, value in hyperparams.items():
+            f.write(f"{key}: {value}\n")
+
+    print(f"Model saved to {model_path}")
+    print(f"Hyperparameters saved to {hyperparams_path}")
+
 
 class EarlyStopping:
     """
@@ -266,11 +334,9 @@ print('Accuracy on validation set: %.2f' % val_accuracy)
 
 evaluate_metrics(model, test_loader, class_names)
 
+save_model(model)
 
 
-# save and log 
-torch.save(model.state_dict(), 'cnn_saved_models/' + str(date.today()) +  'model.pth')
-#log hyper params 
 
 
 
