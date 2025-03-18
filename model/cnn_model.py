@@ -46,7 +46,7 @@ dataset = SepctraDataset(file_paths)
 BATCH_SIZE = 64
 NUM_CLASSES = 3
 num_subclasses = 44
-NUM_EPOCHS = 1
+NUM_EPOCHS = 5
 learning_rate = 0.001
 patience = 5
 
@@ -73,9 +73,10 @@ test_loader = DataLoader(
     collate_fn=collate_fn, shuffle=False
 )
 
-def evaluate_metrics(model, dataloader, class_names):
+def evaluate(model, dataloader, class_names):
     """
-    Evaluate and print classification metrics.
+    Evaluate model performance, calculate validation accuracy, plot confusion matrix,
+    and print classification metrics.
 
     Parameters
     ----------
@@ -85,22 +86,36 @@ def evaluate_metrics(model, dataloader, class_names):
         DataLoader for evaluation data.
     class_names : list of str
         List of class names.
+
+    Returns
+    -------
+    float
+        Validation accuracy in percentage.
     """
-    print("evaluating metrics...")
+    print("Evaluating model...")
     model.eval()
+    correct = 0
+    total = 0
     all_preds = []
     all_labels = []
+    
     with torch.no_grad():
-        for batch in tqdm(val_loader):
+        for batch in tqdm(dataloader):
             features, class_labels = batch
             outputs = model(features)
             _, predicted = torch.max(outputs, 1)
             class_indices = torch.argmax(class_labels, dim=1)
-            
+            total += class_labels.size(0)
+            correct += (predicted == class_indices).sum().item()
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(class_indices.cpu().numpy())
-
+    
+    # Calculate validation accuracy
+    validation_accuracy = 100 * correct / total
+    print(f"Validation Accuracy: {validation_accuracy:.2f}%")
+    
     # Generate classification report
+    print("\nClassification Report:")
     report = classification_report(
         all_labels, all_preds,
         target_names=class_names,
@@ -108,40 +123,7 @@ def evaluate_metrics(model, dataloader, class_names):
     )
     print(report)
 
-def evaluate(model): 
-    """
-    Calculate validation accuracy and plot confusion matrix.
-
-    Parameters
-    ----------
-    model : torch.nn.Module
-        The trained model.
-
-    Returns
-    -------
-    float
-        Validation accuracy in percentage.
-    """
-    print("calculating validation accuracy...")
-    model.eval()
-    correct = 0
-    total = 0
-    all_preds = []
-    all_labels = []
-    with torch.no_grad():
-        for batch in tqdm(val_loader):
-            features, class_labels = batch
-            outputs = model(features)
-            _, predicted = torch.max(outputs, 1) 
-            class_indices = torch.argmax(class_labels, dim=1)  
-            total += class_labels.size(0)  
-            correct += (predicted == class_indices).sum().item() 
-            all_preds.extend(predicted.cpu().numpy())
-            all_labels.extend(class_indices.cpu().numpy())
-
-    validation_accuracy = 100 * correct / total
-
-    print("Plotting confusion matrix...")
+    # Plot confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
 
     # Reorder matrix to match ['GALAXY', 'QSO', 'STAR']
@@ -149,13 +131,14 @@ def evaluate(model):
     cm = cm[reorder][:, reorder]
     new_class_names = ['GALAXY', 'QSO', 'STAR']
 
-    # Plot the confusion matrix
+    print("Plotting confusion matrix...")
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=new_class_names, yticklabels=new_class_names)
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.title('Confusion Matrix')
     plt.show()
+
     return validation_accuracy
 
 def train(model, criterion, optimizer, NUM_EPOCHS):
@@ -329,17 +312,10 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 train(model, criterion, optimizer, NUM_EPOCHS) 
 
-val_accuracy = evaluate(model)
-print('Accuracy on validation set: %.2f' % val_accuracy)
-
-evaluate_metrics(model, test_loader, class_names)
-
+val_accuracy = evaluate(model, val_loader, class_names)
 save_model(model)
 
-
-
-
-
+#### loading sample code 
 # load the model 
 # model2= SimpleFluxCNN(num_classes)
 # model2.load_state_dict(torch.load('cnn_saved_models/model.pth'))
