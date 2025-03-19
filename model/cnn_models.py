@@ -29,7 +29,6 @@ class EarlyStopping:
             self.best_score = score
             self.counter = 0
 
-early_stopping = EarlyStopping(patience=5, verbose=True)
 
 class SimpleFluxCNN(nn.Module):
     """
