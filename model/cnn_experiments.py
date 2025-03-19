@@ -14,7 +14,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
-from model.cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping
 
 # Scientific Python 
 import numpy as np
@@ -50,7 +50,7 @@ NUM_CLASSES = 3
 NUM_EPOCHS = 1
 learning_rate = 0.001
 patience = 5
-dropout = 0.0
+dropout = 0.3
 weight_decay = 1e-4
 
 class_names = ['STAR', 'GALAXY', 'QSO']

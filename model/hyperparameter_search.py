@@ -1,6 +1,6 @@
 import torch
 import itertools
-from model.cnn_models import SimpleFluxCNN
+from cnn_models import SimpleFluxCNN
 from cnn_experiments import train, evaluate
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
