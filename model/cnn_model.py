@@ -112,7 +112,7 @@ def evaluate(model, dataloader, class_names):
     
     # Calculate validation accuracy
     validation_accuracy = 100 * correct / total
-    print(f"Validation Accuracy: {validation_accuracy:.2f}%")
+    print(f"Test Accuracy: {validation_accuracy:.2f}%")
     
     # Generate classification report
     print("\nClassification Report:")
@@ -317,10 +317,10 @@ save_model(model)
 
 #### loading sample code 
 # load the model 
-# model2= SimpleFluxCNN(num_classes)
-# model2.load_state_dict(torch.load('cnn_saved_models/model.pth'))
+model2= SimpleFluxCNN(NUM_CLASSES)
+model2.load_state_dict(torch.load('cnn_saved_models/2025-03-17_21-10-53_model.pth'))
 
-# model2.eval()
-# val_accuracy = evaluate(model2)
+model2.eval()
+val_accuracy = evaluate(model2, test_loader, class_names)
 
 
