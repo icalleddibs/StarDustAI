@@ -4,6 +4,7 @@ import os
 import subprocess
 from tqdm import tqdm 
 from datetime import datetime
+import time
 
 # Deep Learning
 import torch
@@ -13,6 +14,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
+from model.cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping
 
 # Scientific Python 
 import numpy as np
@@ -43,12 +45,13 @@ dataset = SepctraDataset(file_paths)
 
 
 # Training params 
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 NUM_CLASSES = 3
-num_subclasses = 44
-NUM_EPOCHS = 5
+NUM_EPOCHS = 1
 learning_rate = 0.001
 patience = 5
+dropout = 0.0
+weight_decay = 1e-4
 
 class_names = ['STAR', 'GALAXY', 'QSO']
 
@@ -73,7 +76,7 @@ test_loader = DataLoader(
     collate_fn=collate_fn, shuffle=False
 )
 
-def evaluate(model, dataloader, class_names):
+def evaluate(model, dataloader, class_names, type="Test"):
     """
     Evaluate model performance, calculate validation accuracy, plot confusion matrix,
     and print classification metrics.
@@ -110,12 +113,12 @@ def evaluate(model, dataloader, class_names):
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(class_indices.cpu().numpy())
     
-    # Calculate validation accuracy
-    validation_accuracy = 100 * correct / total
-    print(f"Test Accuracy: {validation_accuracy:.2f}%")
+    # Calculate accuracy
+    accuracy = 100 * correct / total
+    print(f"\n{type} Accuracy: {accuracy:.2f}%")
     
     # Generate classification report
-    print("\nClassification Report:")
+    print("\nClassification Report For :", type, " Data")
     report = classification_report(
         all_labels, all_preds,
         target_names=class_names,
@@ -125,9 +128,7 @@ def evaluate(model, dataloader, class_names):
 
     # Plot confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
-
-    # Reorder matrix to match ['GALAXY', 'QSO', 'STAR']
-    reorder = [1, 2, 0]  # indices for ['GALAXY', 'QSO', 'STAR']
+    reorder = [1, 2, 0]  
     cm = cm[reorder][:, reorder]
     new_class_names = ['GALAXY', 'QSO', 'STAR']
 
@@ -136,10 +137,10 @@ def evaluate(model, dataloader, class_names):
     sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=new_class_names, yticklabels=new_class_names)
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
-    plt.title('Confusion Matrix')
+    plt.title('Confusion Matrix For ' + type + ' Data')
     plt.show()
 
-    return validation_accuracy
+    return accuracy
 
 def train(model, criterion, optimizer, NUM_EPOCHS):
     """
@@ -156,6 +157,7 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
     num_epochs : int
         Number of epochs to train for.
     """
+    start_time = time.time()
     pbar = tqdm(range(NUM_EPOCHS))
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
@@ -202,9 +204,11 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
         if early_stopping.early_stop:
             print("Early stopping triggered.")
             break
+    end_time = time.time()  # End timer
+    training_time = end_time - start_time
+    return training_time
 
-
-def save_model(model):
+def save_model(model, loss_fcn= "CrossEntropyLoss"):
     """
     Save the model to a file.
 
@@ -223,15 +227,21 @@ def save_model(model):
     torch.save(model.state_dict(), model_path)
     #log hyper params 
     hyperparams = {
+        'model': model.__class__.__name__,
         'learning_rate': learning_rate,
         'batch_size': BATCH_SIZE,
         'num_epochs': NUM_EPOCHS,
         'patience': patience,
+        'dropout': dropout,
+        'weight_decay': weight_decay,
         'num_classes': NUM_CLASSES,
         'train_size': train_size,
         'val_size': val_size,
         'test_size': test_size,
-        'validation_accuracy': val_accuracy
+        'validation_accuracy': val_accuracy,
+        'test_accuracy': test_accuracy,
+        'training time': training_time, 
+        'loss function': loss_fcn
     }
 
     hyperparams_path = os.path.join(save_dir, f'{timestamp}_hyperparams.txt')
@@ -244,83 +254,29 @@ def save_model(model):
     print(f"Hyperparameters saved to {hyperparams_path}")
 
 
-class EarlyStopping:
-    """
-    Early stopping to stop training when validation loss stops improving.
-    """
-    def __init__(self, patience=5, verbose=0.0):
-        self.patience = patience
-        self.verbose = verbose
-        self.counter = 0
-        self.best_score = None
-        self.early_stop = False
-
-    def __call__(self, val_loss, model):
-        score = -val_loss
-        if self.best_score is None:
-            self.best_score = score
-        elif score < self.best_score:
-            self.counter += 1
-            if self.verbose:
-                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
-            if self.counter >= self.patience:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.counter = 0
-
 early_stopping = EarlyStopping(patience=patience, verbose=True)
 
-
-class SimpleFluxCNN(nn.Module):
-    """
-    Simple CNN model for flux-based classification.
-    """
-
-    def __init__(self, NUM_CLASSES=3):
-        super(SimpleFluxCNN, self).__init__()
-        # Since we are only using the flux column, the input channel is 1.
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.AdaptiveAvgPool1d(1)
-        self.fc = nn.Linear(32, NUM_CLASSES)
-
-    def forward(self, x):
-        # x has shape: (batch_size, max_rows, num_features)
-        # Extract the flux column (first column)
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
-        # Add a channel dimension so that the input becomes (batch_size, 1, max_rows)
-        flux = flux.unsqueeze(1)
-        # Pass through the convolutional layers with ReLU activation.
-        out = F.relu(self.conv1(flux))
-        out = F.relu(self.conv2(out))
-        # Apply adaptive average pooling to get a fixed-size output regardless of input length.
-        out = self.pool(out)  # shape: (batch_size, 32, 1)
-        out = out.squeeze(2)  # shape: (batch_size, 32)
-        # Compute the class logits.
-        logits = self.fc(out)  # shape: (batch_size, num_classes)
-        return logits
-
-
 ### Training and evaluation 
-model = SimpleFluxCNN(NUM_CLASSES)
+# model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
+# model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-train(model, criterion, optimizer, NUM_EPOCHS) 
-
-val_accuracy = evaluate(model, val_loader, class_names)
+training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
+val_accuracy = evaluate(model, val_loader, class_names, "Validation")
+test_accuracy = evaluate(model, test_loader, class_names, "Test")
 save_model(model)
 
 #### loading sample code 
 # load the model 
-model2= SimpleFluxCNN(NUM_CLASSES)
-model2.load_state_dict(torch.load('cnn_saved_models/2025-03-17_21-10-53_model.pth'))
+# model2= SimpleFluxCNN(NUM_CLASSES)
+# model2.load_state_dict(torch.load('cnn_saved_models/2025-03-17_21-10-53_model.pth'))
 
-model2.eval()
-val_accuracy = evaluate(model2, test_loader, class_names)
+# model2.eval()
+# val_accuracy = evaluate(model2, test_loader, class_names)
 
 

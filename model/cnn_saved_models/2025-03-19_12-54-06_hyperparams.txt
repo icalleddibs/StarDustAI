@@ -1,0 +1,13 @@
+Hyperparameters and Results:
+model: FullFeaturesCNN
+learning_rate: 0.001
+batch_size: 256
+num_epochs: 1
+patience: 5
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 80.58771148708816
+test_accuracy: 81.44192256341789
+training time: 229.6617968082428

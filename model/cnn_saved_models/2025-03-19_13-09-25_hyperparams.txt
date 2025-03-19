@@ -1,0 +1,14 @@
+Hyperparameters and Results:
+model: FullFeaturesCNN
+learning_rate: 0.001
+batch_size: 256
+num_epochs: 1
+patience: 5
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 81.56723063223508
+test_accuracy: 80.81886960391633
+training time: 256.5066409111023
+loss function: CrossEntropyLoss

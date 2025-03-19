@@ -1,6 +1,7 @@
 import torch
 import itertools
-from cnn_model import SimpleFluxCNN, train, evaluate
+from model.cnn_models import SimpleFluxCNN
+from cnn_experiments import train, evaluate
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
@@ -51,7 +52,7 @@ for params in itertools.product(*param_grid.values()):
 
     # Train and evaluate
     train(model, criterion, optimizer, NUM_EPOCHS=3)
-    val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'])
+    val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
 
     # Track best model
     if val_acc > best_acc:

@@ -1,0 +1,12 @@
+Hyperparameters and Results:
+learning_rate: 0.001
+batch_size: 512
+num_epochs: 3
+patience: 5
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 62.42208370436331
+test_accuracy: 60.65865598575879
+training time: 697.6264071464539
