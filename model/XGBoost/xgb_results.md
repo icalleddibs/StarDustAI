@@ -166,3 +166,44 @@ Classification Report:
    macro avg       0.99      0.99      0.99      2996
 weighted avg       0.99      0.99      0.99      2996
 - **attempted feature importance but the XGB library didn't seem to work. will run again to test and use the new data loader.**
+
+## Run 7
+Using the cleaned pkl files and fixed feature importance
+- 100 boosts
+- full dataset
+- params = {
+    'objective': 'multi:softprob',
+    'num_class': len(np.unique(y_encoded)),
+    'eval_metric': 'mlogloss',
+    'max_depth': 6,
+    'eta': 0.05,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'lambda': 0.8,
+    'seed': 42
+    }
+- results:
+- Training time: 730.92 seconds
+Validation Accuracy: 0.9873
+Classification Report:
+              precision    recall  f1-score   support
+
+      GALAXY       0.98      0.98      0.98       950
+         QSO       0.99      0.99      0.99      1574
+        STAR       1.00      1.00      1.00       472 
+
+    accuracy                           0.99      2996
+   macro avg       0.99      0.99      0.99      2996
+weighted avg       0.99      0.99      0.99      2996
+- Feature Importance Values:
+    z: 872.0
+    z_err: 779.0
+    rchi2: 135.0
+    model: 34.0
+    sn_median_ir: 13.0
+    sn_median_r: 9.0
+    sn_median_uv: 7.0
+    flux: 4.0
+    ivar: 4.0
+    loglam: 3.0
+    sn_median_nir: 3.0
