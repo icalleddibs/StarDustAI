@@ -3,33 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-
-class EarlyStopping:
-    """
-    Early stopping to stop training when validation loss stops improving.
-    """
-    def __init__(self, patience=5, verbose=0.0):
-        self.patience = patience
-        self.verbose = verbose
-        self.counter = 0
-        self.best_score = None
-        self.early_stop = False
-
-    def __call__(self, val_loss, model):
-        score = -val_loss
-        if self.best_score is None:
-            self.best_score = score
-        elif score < self.best_score:
-            self.counter += 1
-            if self.verbose:
-                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
-            if self.counter >= self.patience:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.counter = 0
-
-
 class SimpleFluxCNN(nn.Module):
     """
     Simple CNN model for flux-based classification.
@@ -144,3 +117,60 @@ class FullFeaturesCNN(nn.Module):
         out = self.dropout(out)  # Dropout before FC
         logits = self.fc(out)
         return logits
+    
+
+##### Other helper classes #####
+
+class EarlyStopping:
+    """
+    Early stopping to stop training when validation loss stops improving.
+    """
+    def __init__(self, patience=5, verbose=0.0):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+
+    def __call__(self, val_loss, model):
+        score = -val_loss
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0
+
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.reduction = reduction
+        
+        if alpha is None:
+            self.alpha = torch.tensor([0.16, 0.31, 0.53])  # Match class imbalance
+        else:
+            self.alpha = torch.tensor(alpha)
+    
+    def forward(self, inputs, targets):
+        log_probs = F.log_softmax(inputs, dim=-1)
+        probs = torch.exp(log_probs)
+        targets_one_hot = F.one_hot(targets, num_classes=inputs.size(-1)).float()
+        
+        # Calculate focal weight
+        focal_weight = (1 - probs) ** self.gamma
+        loss = -self.alpha.to(inputs.device) * focal_weight * log_probs * targets_one_hot
+        
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss

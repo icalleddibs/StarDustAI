@@ -14,7 +14,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
-from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
@@ -47,7 +47,7 @@ dataset = SepctraDataset(file_paths)
 # Training params 
 BATCH_SIZE = 256
 NUM_CLASSES = 3
-NUM_EPOCHS = 1
+NUM_EPOCHS = 3
 learning_rate = 0.001
 patience = 5
 dropout = 0.3
@@ -61,7 +61,7 @@ val_size = int(0.15 * len(dataset))
 test_size = len(dataset) - train_size - val_size  
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-# Create DataLoaders with the updated collate function
+
 # Create DataLoaders with the updated collate function
 train_loader = DataLoader(
     train_dataset, batch_size=BATCH_SIZE,
@@ -131,10 +131,19 @@ def evaluate(model, dataloader, class_names, type="Test"):
     reorder = [1, 2, 0]  
     cm = cm[reorder][:, reorder]
     new_class_names = ['GALAXY', 'QSO', 'STAR']
+    cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] 
 
     print("Plotting confusion matrix...")
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", xticklabels=new_class_names, yticklabels=new_class_names)
+    sns.heatmap(
+        cm_percentage, 
+        annot=True, 
+        fmt='.1%', 
+        cmap="Blues", 
+        xticklabels=new_class_names, 
+        yticklabels=new_class_names
+    )
+
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.title('Confusion Matrix For ' + type + ' Data')
@@ -263,18 +272,19 @@ model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
-criterion = nn.CrossEntropyLoss()
+#criterion = nn.CrossEntropyLoss()
+criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")
-save_model(model)
+save_model(model, loss_fcn="FocalLoss")
 
 #### loading sample code 
 # load the model 
-# model2= SimpleFluxCNN(NUM_CLASSES)
-# model2.load_state_dict(torch.load('cnn_saved_models/2025-03-17_21-10-53_model.pth'))
+# model2= FullFeaturesCNN(NUM_CLASSES)
+# model2.load_state_dict(torch.load('cnn_saved_models/2025-03-19_13-17-32_model.pth'))
 
 # model2.eval()
 # val_accuracy = evaluate(model2, test_loader, class_names)
