@@ -1,142 +1,81 @@
 import glob
 import os 
+import time 
+import pickle 
+from collections import defaultdict
+
+import numpy as np
 from tqdm import tqdm 
 import matplotlib.pyplot as plt
-import time  
-
-# XGBoost
+import seaborn as sns
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import (
+    accuracy_score, 
+    classification_report, 
+    confusion_matrix, 
+    ConfusionMatrixDisplay
+)
 from sklearn.preprocessing import LabelEncoder
 
-# Scientific Python 
-from astropy.table import Table
-from astropy.io import fits
-import numpy as np
+'''
+This script demonstrates how to train an XGBoost model on a dataset of pickle files.
+It loads the data from the pickle files, preprocesses it to the correct size, and trains an XGBoost model.
+The model is evaluated on a test set, with the classification report and feature importance being displayed.
+'''
 
-# repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-# base_dir = os.path.join(repo_root, "data/full/")
-# file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
+# Personal File Loading of pickle files from SSD
+BASE_DIR = "E:/StarDustAI/data/full_zwarning/full_zwarning"
+FILE_PATHS = glob.glob(os.path.join(BASE_DIR, '**/*.pkl'), recursive=True)
 
-base_dir = "E:/StarDustAI/full"
-file_paths = glob.glob(os.path.join(base_dir, "*/*.fits"))
-
-# If no FITS files are found, raise an error
-if not file_paths:
-    raise ValueError("No FITS files found in 'data/full/'")
-# Currently only using 10000 plate numbers
+if not FILE_PATHS:
+    raise ValueError("No pickle files found in the specified directory")
 
 # Initialize lists to store features and labels
-X = []
-y = []
+X, y = [], []
+MAX_LENGTH = 4615  # For padding/truncating
 
-i = 0
-max_length = 4615 # For the padding
+def pad_or_truncate(array, max_length=MAX_LENGTH):
+    ''' Pad or truncate an array to the specified length for XGB model '''
+    array_len = len(array)
+    if array_len > max_length:
+        return array[:max_length]                                            # Truncate if too long
+    elif array_len < max_length:
+        return np.pad(array, (0, max_length - array_len), mode='constant')   # Pad if too short
+    return array                                                             # No change if max size
 
-# Loop through each file and extract data
-for file_path in file_paths:
+# Load all pickle files
+for pickle_file in tqdm(FILE_PATHS, desc="Loading Pickle Files", unit="file"):
+    try:
+        with open(pickle_file, 'rb') as f:
+            data = pickle.load(f)
+            
+            # Get the features and labels
+            features = np.column_stack([
+                pad_or_truncate(data["flux"], MAX_LENGTH),
+                pad_or_truncate(data["loglam"], MAX_LENGTH),
+                pad_or_truncate(data["ivar"], MAX_LENGTH),
+                pad_or_truncate(data["model"], MAX_LENGTH),
+                pad_or_truncate(data["Z"], MAX_LENGTH),
+                pad_or_truncate(data["Z_ERR"], MAX_LENGTH),
+                pad_or_truncate(data["SN_MEDIAN_UV"], MAX_LENGTH),
+                pad_or_truncate(data["SN_MEDIAN_R"], MAX_LENGTH),
+                pad_or_truncate(data["SN_MEDIAN_NIR"], MAX_LENGTH),
+                pad_or_truncate(data["SN_MEDIAN_IR"], MAX_LENGTH),
+                pad_or_truncate(data["ZWARNING"], MAX_LENGTH),
+                pad_or_truncate(data["RCHI2"], MAX_LENGTH),
+            ])
+
+            X.append(features)
+            y.append(data["CLASS"][0])
     
-    # check for missing
-    with fits.open(file_path) as hdul:
-        if len(hdul) <= 1:  # If HDU 2 doesn't exist, skip this file
-            print(f"Skipping {file_path}: HDU 1 not found.")
-            continue
-        
-    with fits.open(file_path) as hdul:
-        if len(hdul) <= 2:  # If HDU 2 doesn't exist, skip this file
-            print(f"Skipping {file_path}: HDU 2 not found.")
-            continue
-        
-    # ERRORS:
-    # 10227/spec-10227-58224-0419.fits - HDU 2 not found
-    
-    # Read FITS file
-    dat1 = Table.read(file_path, format='fits', hdu=1)  # HDU 1
-    dat2 = Table.read(file_path, format='fits', hdu=2)  # HDU 2
+    # To handle incorrectly formatted pickle files
+    except Exception as e:
+        print(f"Error loading {pickle_file}: {e}")
 
-    # Extract relevant columns from HDU 1
-    flux = dat1['flux'].data
-    loglam = dat1['loglam'].data
-    ivar = dat1['ivar'].data
-    model = dat1['model'].data
+X = np.array(X, dtype=float)  
+y = np.array(y)  
 
-    # Extract relevant columns from HDU 2
-    platequality = dat2['PLATEQUALITY'].data
-    platesn2 = dat2['PLATESN2'].data
-    plate = dat2['PLATE'].data
-    tile = dat2['TILE'].data
-    mjd = dat2['MJD'].data
-    fiberid = dat2['FIBERID'].data
-    class_label = dat2['CLASS'].data
-    subclass = dat2['SUBCLASS'].data
-    z = dat2['Z'].data
-    z_err = dat2['Z_ERR'].data
-    sn_median = dat2['SN_MEDIAN'].data
-    sn_median_all = dat2['SN_MEDIAN_ALL'].data
-    zwarning = dat2['ZWARNING'].data
-    rchi2 = dat2['RCHI2'].data
-
-    # Reshape SN_MEDIAN into individual filter columns
-    sn_median_uv = sn_median[:, 0]  # Ultraviolet
-    sn_median_g = sn_median[:, 1]   # Green
-    sn_median_r = sn_median[:, 2]   # Red
-    sn_median_nir = sn_median[:, 3] # Near-Infrared
-    sn_median_ir = sn_median[:, 4]  # Infrared
-    
-    def pad_or_truncate(array, max_length):
-        if len(array) > max_length:
-            return array[:max_length]  # Truncate if too long
-        return np.pad(array, (0, max_length - len(array)), mode='constant')  # Pad if too short
-
-    # Apply the function to all arrays
-    flux = pad_or_truncate(flux, max_length)
-    loglam = pad_or_truncate(loglam, max_length)
-    ivar = pad_or_truncate(ivar, max_length)
-    model = pad_or_truncate(model, max_length)
-    platequality = pad_or_truncate(platequality, max_length)
-    platesn2 = pad_or_truncate(platesn2, max_length)
-    plate = pad_or_truncate(plate, max_length)
-    tile = pad_or_truncate(tile, max_length)
-    mjd = pad_or_truncate(mjd, max_length)
-    fiberid = pad_or_truncate(fiberid, max_length)
-    z = pad_or_truncate(z, max_length)
-    z_err = pad_or_truncate(z_err, max_length)
-    sn_median_uv = pad_or_truncate(sn_median_uv, max_length)
-    sn_median_g = pad_or_truncate(sn_median_g, max_length)
-    sn_median_r = pad_or_truncate(sn_median_r, max_length)
-    sn_median_nir = pad_or_truncate(sn_median_nir, max_length)
-    sn_median_ir = pad_or_truncate(sn_median_ir, max_length)
-    zwarning = pad_or_truncate(zwarning, max_length)
-    rchi2 = pad_or_truncate(rchi2, max_length)
-
-    # Combine all features into a single array
-    # TOOK OUT PLATE QUALITY, platesn2, plate, tile, mjd, fiberid
-    features = np.column_stack([
-        flux, loglam, ivar, model,  
-        z, z_err, 
-        sn_median_uv, sn_median_g, sn_median_r, sn_median_nir, sn_median_ir,
-        zwarning, rchi2
-    ])
-
-    # Append features and labels to the lists
-    X.append(features)
-    #print(features)
-    y.append(class_label)  # Assuming class_label is the target
-    #print(class_label)
-    
-    #i = i + 1
-    #print("APPENDED ", i)
-    
-# Check the shape of each sample because I was having issues
-shapes = [sample.shape for sample in X]
-print(f"Unique shapes: {set(shapes)}")
-
-# Convert to a single numpy array
-X = np.array(X, dtype=float)
-y = np.array(y)
-
-# Flatten the features
 X_flattened = X.reshape(X.shape[0], -1)
 
 # Encode class labels
@@ -144,13 +83,15 @@ label_encoder = LabelEncoder()
 y_encoded = label_encoder.fit_transform(y)
 
 # Split data into training and validation sets
-X_train, X_val, y_train, y_val = train_test_split(X_flattened, y_encoded, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_flattened, y_encoded, test_size=0.15, random_state=42
+    )
 
-# Create DMatrix for training and validation
+# Create DMatrix specific to XGB for training and validation
 dtrain = xgb.DMatrix(data=X_train, label=y_train)
 dval = xgb.DMatrix(data=X_val, label=y_val)
 
-# Set XGBoost parameters
+# Set XGBoost parameters: editable to tune model
 params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -159,14 +100,12 @@ params = {
     'eta': 0.05,
     'subsample': 0.8,
     'colsample_bytree': 0.8,
-    'lambda': 1,
+    'lambda': 0.8,
     'seed': 42
 }
 
-# Train the model, can modify
-num_rounds = 50
-
-start_time = time.time()
+# Train the model
+num_rounds = 100
 
 # Custom callback to update tqdm progress bar
 class TQDMProgressBar(xgb.callback.TrainingCallback):
@@ -181,74 +120,85 @@ class TQDMProgressBar(xgb.callback.TrainingCallback):
         self.pbar.close()
         return model
 
-# Initialize the progress bar
 progress_bar = TQDMProgressBar(total=num_rounds)
+start_time = time.time()
 
 bst = xgb.train(
     params, 
     dtrain, 
     num_rounds, 
-    evals=[(dval, 'validation')],  # Evaluate on the validation set
-    early_stopping_rounds=10,      # Stop if validation performance doesn't improve for 10 rounds
-    callbacks=[progress_bar]       # Update the progress bar
+    evals=[(dval, 'validation')],
+    early_stopping_rounds=10,
+    callbacks=[progress_bar]
 )
 
-
 # Record end time and calculate total time taken
-end_time = time.time()
-training_time = end_time - start_time
-print(f"Training time: {training_time:.2f} seconds")
+print(f"Training time: {time.time() - start_time:.2f} seconds")
 
-
-# Evaluate the model
+# Predictions on the test set
 y_pred = bst.predict(dval)
 y_pred_labels = np.argmax(y_pred, axis=1)  # Convert probabilities to class labels
-
 y_pred_decoded = label_encoder.inverse_transform(y_pred_labels)
 
-# Calculate accuracy
+# Main Classification Metrics
 accuracy = accuracy_score(y_val, y_pred_labels)
 print(f"Validation Accuracy: {accuracy:.4f}")
-
-# Print classification report
 print("Classification Report:")
 print(classification_report(y_val, y_pred_labels, target_names=label_encoder.classes_))
 
-# Generate confusion matrix
+# Confusion Matrix
 cm = confusion_matrix(y_val, y_pred_labels)
+cm_percentage = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
+print("Confusion Matrix (Percentages):")
+print(cm_percentage)
 
 # Display confusion matrix
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
 disp.plot(cmap=plt.cm.Blues)
-
-# Show the plot
 plt.show()
 
+# Display confusion matrix with percentages
+plt.figure(figsize=(8,6))
+sns.heatmap(cm_percentage, annot=True, fmt=".2f", cmap="Blues", xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.title("Confusion Matrix (Percentage)")
+plt.show()
 
-# PROBLEMS ------------------------------------------------------------------------------
-# Traceback (most recent call last):
-#   File "c:\Users\diba\StarDustAI\model\XGBoost\xgboost_model.py", line 229, in <module>
-#     booster = bst.get_booster()
-#               ^^^^^^^^^^^^^^^
-# AttributeError: 'Booster' object has no attribute 'get_booster'
+# Feature importance
+booster = bst  # bst is already a booster object
+correct_feature_names = ["flux", "loglam", "ivar", "model",
+                         "z", "z_err", 
+                         "sn_median_uv", "sn_median_r", "sn_median_nir", "sn_median_ir",
+                         "zwarning", "rchi2"]
 
-
-# Get the booster and plot feature importance
-booster = bst.get_booster()
-
-# Get the feature importance
 feature_importance = booster.get_score(importance_type='weight')
+print("Feature Importance Keys from XGBoost:", feature_importance.keys())
+mapped_importance = defaultdict(int)  # Default to 0 for missing features
 
-# Sort feature importance
-sorted_feature_importance = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+for f, imp in feature_importance.items():
+    if f.startswith("f"):  
+        try:
+            idx = int(f[1:])  # Get the feature index and find the correct feature name
+            if 0 <= idx < len(correct_feature_names): 
+                mapped_importance[correct_feature_names[idx]] = imp
+            else:
+                print(f"Warning: Feature index {idx} out of range, skipping...")
+        except ValueError:
+            print(f"Warning: Unexpected feature format '{f}' ignored.")
 
-# Extract sorted feature names and importance values
-features_names = [name for name, _ in sorted_feature_importance]
-importance_values = [importance for _, importance in sorted_feature_importance]
+sorted_importance = sorted(mapped_importance.items(), key=lambda x: x[1], reverse=True)  # Sort by importance
+feature_names, importance_values = zip(*sorted_importance)
 
-# Plot feature importance
+print("\nFeature Importance Values:")
+for name, importance in sorted_importance:
+    print(f"{name}: {importance}")
+
 plt.figure(figsize=(10, 6))
-plt.barh(features_names, importance_values, color='skyblue')
+plt.barh(feature_names, importance_values, color='skyblue')
 plt.xlabel('Importance')
-plt.title('Feature Importance')
+plt.ylabel('Feature')
+plt.title('Feature Importance (Corrected)')
+plt.gca().invert_yaxis() 
+plt.grid(axis='x', linestyle='--', alpha=0.7) 
 plt.show()
