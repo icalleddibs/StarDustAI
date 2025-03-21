@@ -1,0 +1,16 @@
+Hyperparameters and Results:
+model: DilatedFullFeaturesCNN
+learning_rate: 0.001
+batch_size: 256
+num_epochs: 3
+patience: 5
+dropout: 0.3
+weight_decay: 0.0001
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 93.23241317898486
+test_accuracy: 92.61237205162439
+training time: 718.0010492801666
+loss function: FocalLoss

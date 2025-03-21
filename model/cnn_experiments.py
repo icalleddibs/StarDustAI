@@ -14,7 +14,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
-from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping, FocalLoss
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
@@ -269,6 +269,7 @@ early_stopping = EarlyStopping(patience=patience, verbose=True)
 # model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
 # model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+# model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
