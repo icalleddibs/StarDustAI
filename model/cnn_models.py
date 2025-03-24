@@ -24,11 +24,11 @@ class SimpleFluxCNN(nn.Module):
         flux = x[:, :, 0]  # shape: (batch_size, max_rows)
         flux = flux.unsqueeze(1)
 
-        out = F.relu(self.conv1(flux))
+        out = F.leaky_relu(self.conv1(flux))
         out = self.ln1(out)  
         out = self.dropout(out)
 
-        out = F.relu(self.conv2(out))
+        out = F.leaky_relu(self.conv2(out))
         out = self.ln2(out)  
         out = self.dropout(out)
 
@@ -60,11 +60,11 @@ class AllFeaturesCNN(nn.Module):
         flux = x[:, :, 0]  # shape: (batch_size, max_rows)
         flux = flux.unsqueeze(1)
 
-        out = F.relu(self.conv1(flux))
+        out = F.leaky_relu(self.conv1(flux))
         out = self.ln1(out)
         out = self.dropout(out)
 
-        out = F.relu(self.conv2(out))
+        out = F.leaky_relu(self.conv2(out))
         out = self.ln2(out)
         out = self.dropout(out)
 
@@ -104,11 +104,11 @@ class FullFeaturesCNN(nn.Module):
         flux = flux.unsqueeze(1)
         combined_input = torch.cat((flux, global_features), dim=1)
 
-        out = F.relu(self.conv1(combined_input))
+        out = F.leaky_relu(self.conv1(combined_input))
         out = self.ln1(out)
         out = self.dropout(out)
 
-        out = F.relu(self.conv2(out))
+        out = F.leaky_relu(self.conv2(out))
         out = self.ln2(out)
         out = self.dropout(out)
 
