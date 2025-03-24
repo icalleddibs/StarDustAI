@@ -1,7 +1,8 @@
 import torch
+import torchinfo
 import itertools
-from cnn_models import SimpleFluxCNN
-from cnn_experiments import train, evaluate
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping, FocalLoss, DilatedFullFeaturesCNN
+from cnn_experiments import train, evaluate, save_model
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn
@@ -28,35 +29,71 @@ test_size = len(dataset) - train_size - val_size
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
 # Hyperparameter search space
-param_grid = {
-    "learning_rate": [0.001, 0.0005],
-    "batch_size": [64, 128]
+param_space = {
+    "learning_rate": [0.0001, 0.001, 0.01, 0.1],
+    "dropout": [0.2, 0.3, 0.4, 0.5],
+    "weight_decay": [0.0001, 0.001, 0.01],
+    "dilation": [2, 3, 4]
 }
 
-best_acc = 0
-best_params = None
+batch_size = 512
+full_trials, dil_trials = 30, 30
+best_params_full, best_params_dil = None, None
+best_acc_full, best_acc_dil = 0,0
 
-# Iterate through hyperparameter combinations
-for params in itertools.product(*param_grid.values()):
-    lr, batch_size = params
-    print(f"\nTesting: learning_rate={lr}, batch_size={batch_size}")
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-    # Dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+# Full Features CNN
+for _ in range(full_trials):
+    # Randomly sample parameters
+    params = {key: random.choice(values) for key, values in param_space.items()}
+    
+    lr, dropout, wd = (params["learning_rate"], params["dropout"], params["weight_decay"])
 
+    print(f"\nTesting: Model= FullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}")
+    
     # Model, loss, optimizer
-    model = SimpleFluxCNN(NUM_CLASSES=3)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    model = FullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout)
+    model.train()
+    print(torchinfo.summary(model))
+    criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
     # Train and evaluate
-    train(model, criterion, optimizer, NUM_EPOCHS=3)
+    training_time = train(model, criterion, optimizer, NUM_EPOCHS=3) 
     val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
 
     # Track best model
-    if val_acc > best_acc:
-        best_acc = val_acc
-        best_params = {"learning_rate": lr, "batch_size": batch_size}
+    if val_acc > best_acc_full:
+        best_acc_full = val_acc
+        best_params_full = params
 
-print(f"\nBest Hyperparameters: {best_params}, Validation Accuracy: {best_acc:.2f}%")
+print(f"\nBest Hyperparameters Full: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
+
+# Dilated Features CNN
+for _ in range(full_trials):
+    # Randomly sample parameters
+    params = {key: random.choice(values) for key, values in param_space.items()}
+    
+    lr, dropout, wd, dilation = (params["learning_rate"], params["dropout"], params["weight_decay"], params["dilation"])
+
+    print(f"\nTesting: Model= DilatedFullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}, dilation={dilation}")
+    
+    # Model, loss, optimizer
+    model = DilatedFullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout, dilation = dilation)
+    model.train()
+    print(torchinfo.summary(model))
+    criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+
+    # Train and evaluate
+    training_time = train(model, criterion, optimizer, NUM_EPOCHS=3) 
+    val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
+
+    # Track best model
+    if val_acc > best_acc_dil:
+        best_acc_dil = val_acc
+        best_params_dil = params
+
+print(f"\nBest Hyperparameters Dilated: {best_params_dil}, Validation Accuracy: {best_acc_dil:.2f}%")
