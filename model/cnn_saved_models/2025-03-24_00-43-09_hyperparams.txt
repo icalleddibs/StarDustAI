@@ -1,0 +1,16 @@
+Hyperparameters and Results:
+model: FullFeaturesResNet
+learning_rate: 0.001
+batch_size: 256
+num_epochs: 1
+patience: 5
+dropout: 0.3
+weight_decay: 0.0001
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 85.44078361531612
+test_accuracy: 85.8032932799288
+training time: 535.8307619094849
+loss function: FocalLoss

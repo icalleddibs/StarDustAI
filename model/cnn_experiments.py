@@ -13,8 +13,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
+import torch.nn.utils as utils
 from data_model import SepctraDataset, collate_fn
-from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, EarlyStopping, FocalLoss
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
@@ -45,13 +46,14 @@ dataset = SepctraDataset(file_paths)
 
 
 # Training params 
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
-patience = 5
+patience = 3
 dropout = 0.3
-weight_decay = 1e-4
+weight_decay = 0.001
+dilation = 2
 
 class_names = ['STAR', 'GALAXY', 'QSO']
 
@@ -184,6 +186,7 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
             class_indices = torch.argmax(class_labels, dim=1)
             loss = criterion(outputs, class_indices)
             loss.backward()
+            utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             running_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
@@ -213,7 +216,7 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
         if early_stopping.early_stop:
             print("Early stopping triggered.")
             break
-    end_time = time.time()  # End timer
+    end_time = time.time()  
     training_time = end_time - start_time
     return training_time
 
@@ -268,13 +271,15 @@ early_stopping = EarlyStopping(patience=patience, verbose=True)
 ### Training and evaluation 
 # model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
 # model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-# model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+#model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
 #criterion = nn.CrossEntropyLoss()
-criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.8)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
