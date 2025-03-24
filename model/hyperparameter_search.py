@@ -44,13 +44,11 @@ best_acc_full, best_acc_dil = 0,0
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-# Full Features CNN
+### Full Features CNN
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
-    
     lr, dropout, wd = (params["learning_rate"], params["dropout"], params["weight_decay"])
-
     print(f"\nTesting: Model= FullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}")
     
     # Model, loss, optimizer
@@ -71,13 +69,11 @@ for _ in range(full_trials):
 
 print(f"\nBest Hyperparameters Full: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
 
-# Dilated Features CNN
+### Dilated Full Features CNN
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
-    
     lr, dropout, wd, dilation = (params["learning_rate"], params["dropout"], params["weight_decay"], params["dilation"])
-
     print(f"\nTesting: Model= DilatedFullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}, dilation={dilation}")
     
     # Model, loss, optimizer
