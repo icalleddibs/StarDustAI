@@ -207,3 +207,44 @@ weighted avg       0.99      0.99      0.99      2996
     ivar: 4.0
     loglam: 3.0
     sn_median_nir: 3.0
+
+## Run 8
+Trying to update feature importance by concatenating all features into a row
+- 100 boosts
+- full dataset
+- params = {
+    'objective': 'multi:softprob',
+    'num_class': len(np.unique(y_encoded)),
+    'eval_metric': 'mlogloss',
+    'max_depth': 6,
+    'eta': 0.05,
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+    'lambda': 0.8,
+    'seed': 42
+    }
+- results:
+Training time: 887.90 seconds
+Validation Accuracy: 0.9875
+Classification Report:
+              precision    recall  f1-score   support
+
+      GALAXY       0.98      0.98      0.98       729
+         QSO       0.99      0.99      0.99      1172
+        STAR       1.00      1.00      1.00       346
+
+    accuracy                           0.99      2247
+   macro avg       0.99      0.99      0.99      2247
+weighted avg       0.99      0.99      0.99      2247
+- Feature Importance Values:
+    z: 910.0
+    z_err: 788.0
+    rchi2: 173.0
+    model: 39.0
+    sn_median_uv: 14.0
+    sn_median_nir: 12.0
+    sn_median_r: 11.0
+    sn_median_ir: 6.0
+    loglam: 5.0
+    ivar: 5.0
+    flux: 2.0
