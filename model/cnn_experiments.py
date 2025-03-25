@@ -13,8 +13,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
+import torch.nn.utils as utils
 from data_model import SepctraDataset, collate_fn
-from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, EarlyStopping, FocalLoss
+from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
@@ -25,17 +26,17 @@ import plotly as px
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 
+# set seed for reproducibility 
+random.seed(42)
 
-
-# List all FITS files
 # Get the repo root (assumes script is inside STARDUSTAI/)
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 base_dir = os.path.join(repo_root, "data/full_zwarning")
 file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
 
-# If no FITS files are found, raise an error
+# If no files are found, raise an error
 if not file_paths:
-    raise ValueError("No FITS files found in 'data/full_zwarning/'")
+    raise ValueError("No data files found in 'data/full_zwarning/'")
 
 # Shuffle the file paths
 random.shuffle(file_paths)
@@ -43,15 +44,15 @@ random.shuffle(file_paths)
 # Load the dataset
 dataset = SepctraDataset(file_paths)
 
-
 # Training params 
 BATCH_SIZE = 256
 NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
-patience = 5
+patience = 2
 dropout = 0.3
-weight_decay = 1e-4
+weight_decay = 0.001
+dilation = 2
 
 class_names = ['STAR', 'GALAXY', 'QSO']
 
@@ -60,7 +61,6 @@ train_size = int(0.7 * len(dataset))
 val_size = int(0.15 * len(dataset))    
 test_size = len(dataset) - train_size - val_size  
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
-
 
 # Create DataLoaders with the updated collate function
 train_loader = DataLoader(
@@ -184,6 +184,7 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
             class_indices = torch.argmax(class_labels, dim=1)
             loss = criterion(outputs, class_indices)
             loss.backward()
+            utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             running_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
@@ -207,13 +208,14 @@ def train(model, criterion, optimizer, NUM_EPOCHS):
                 loss = criterion(outputs, class_indices)
                 val_loss += loss.item()
         val_loss /= len(val_loader)
-
+        scheduler.step(val_loss)
         # Early stopping check
         early_stopping(val_loss, model)
         if early_stopping.early_stop:
             print("Early stopping triggered.")
             break
-    end_time = time.time()  # End timer
+    
+    end_time = time.time()  
     training_time = end_time - start_time
     return training_time
 
@@ -268,15 +270,16 @@ early_stopping = EarlyStopping(patience=patience, verbose=True)
 ### Training and evaluation 
 # model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
 # model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-# model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+#model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
-#criterion = nn.CrossEntropyLoss()
 criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")

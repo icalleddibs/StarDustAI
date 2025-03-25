@@ -1,0 +1,16 @@
+Hyperparameters and Results:
+model: FullFeaturesCNNMoreLayers
+learning_rate: 0.001
+batch_size: 512
+num_epochs: 1
+patience: 3
+dropout: 0.3
+weight_decay: 0.001
+num_classes: 3
+train_size: 10483
+val_size: 2246
+test_size: 2247
+validation_accuracy: 82.05699020480854
+test_accuracy: 82.99955496217179
+training time: 495.5071852207184
+loss function: FocalLoss
