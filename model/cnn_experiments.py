@@ -151,7 +151,7 @@ def evaluate(model, dataloader, class_names, type="Test"):
 
     return accuracy
 
-def train(model, criterion, optimizer, NUM_EPOCHS):
+def train(model, criterion, optimizer, scheduler, NUM_EPOCHS):
     """
     Train the model.
 

@@ -353,6 +353,6 @@ class ResidualBlock(nn.Module):
         if self.residual_projection is not None:
             identity = self.residual_projection(identity)
 
-        out += 0.5 *  identity  # Residual connection
+        out += identity  # Residual connection
         return F.leaky_relu(out)
 

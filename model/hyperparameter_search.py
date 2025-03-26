@@ -1,7 +1,7 @@
 import torch
 import torchinfo
 import itertools
-from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, EarlyStopping, FocalLoss, DilatedFullFeaturesCNN
+from cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers
 from cnn_experiments import train, evaluate, save_model
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
@@ -30,13 +30,13 @@ train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, va
 
 # Hyperparameter search space
 param_space = {
-    "learning_rate": [0.0001, 0.001, 0.01, 0.1],
-    "dropout": [0.2, 0.3, 0.4, 0.5],
-    "weight_decay": [0.0001, 0.001, 0.01],
+    "learning_rate": [0.005, 0.001],
+    "dropout": [0.4, 0.5],
+    "weight_decay": [0.0001, 0.001],
     "dilation": [2, 3, 4]
 }
 
-batch_size = 512
+batch_size = 256
 full_trials, dil_trials = 30, 30
 best_params_full, best_params_dil = None, None
 best_acc_full, best_acc_dil = 0,0
@@ -44,7 +44,7 @@ best_acc_full, best_acc_dil = 0,0
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-### Full Features CNN
+### Full Features ResNet
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
@@ -52,14 +52,15 @@ for _ in range(full_trials):
     print(f"\nTesting: Model= FullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}")
     
     # Model, loss, optimizer
-    model = FullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout)
+    model = FullFeaturesResNet(NUM_CLASSES=3, dropout_rate=dropout)
     model.train()
     print(torchinfo.summary(model))
     criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
 
     # Train and evaluate
-    training_time = train(model, criterion, optimizer, NUM_EPOCHS=3) 
+    training_time = train(model, criterion, optimizer, scheduler, NUM_EPOCHS=1) 
     val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
 
     # Track best model
@@ -67,8 +68,9 @@ for _ in range(full_trials):
         best_acc_full = val_acc
         best_params_full = params
 
-print(f"\nBest Hyperparameters Full: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
+print(f"\nBest Hyperparameters Full ResNet: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
 
+"""
 ### Dilated Full Features CNN
 for _ in range(full_trials):
     # Randomly sample parameters
@@ -93,3 +95,4 @@ for _ in range(full_trials):
         best_params_dil = params
 
 print(f"\nBest Hyperparameters Dilated: {best_params_dil}, Validation Accuracy: {best_acc_dil:.2f}%")
+"""
