@@ -1,21 +1,21 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from cnn_models import FullFeaturesResNet
+from cnn_models import FullFeaturesCNN
 from data_model import SepctraDataset, collate_fn
 from torch.utils.data import DataLoader
 import os
 import glob
 
 # Load the model
-model_path = 'model/cnn_saved_models/2025-03-24_13-30-03_model.pth'
-model = FullFeaturesResNet(NUM_CLASSES=3)
+model_path = 'model/cnn_saved_models/2025-03-20_10-24-47_model.pth'
+model = FullFeaturesCNN(NUM_CLASSES=3)
 model.load_state_dict(torch.load(model_path))
 model.eval()
 
 # Load a subset of data
 base_dir = 'data/full_zwarning'
-file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:200] 
+file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:300] 
 dataset = SepctraDataset(file_paths)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn, shuffle=False)
 
@@ -49,7 +49,7 @@ feature_names = ['flux', 'loglam', 'ivar', 'model','PLATESN2', 'Z',
                  'Z_ERR', 'ZWARNING', 'RCHI2', 'PLATEQUALITY', 'snr_uv', 
                  'snr_r', 'snr_nir', 'snr_ir']
 
-
+print(feature_importance)
 # Plot feature importance
 plt.figure(figsize=(12, 6))
 plt.bar(feature_names, feature_importance[0])
