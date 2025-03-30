@@ -1,10 +1,14 @@
 import glob
 import random 
 import os 
+import sys
 import subprocess
 from tqdm import tqdm 
 from datetime import datetime
 import time
+
+# Append model to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Deep Learning
 import torch
@@ -14,7 +18,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 import torch.nn.utils as utils
-from data_model import SepctraDataset, collate_fn
+from data_model import SpectraDataset, collate_fn
 from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
@@ -29,7 +33,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 # set seed for reproducibility 
 random.seed(42)
 
-# Get the repo root (assumes script is inside STARDUSTAI/)
+# # Get the repo root (assumes script is inside STARDUSTAI/)
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 base_dir = os.path.join(repo_root, "data/full_zwarning")
 file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
@@ -42,16 +46,16 @@ if not file_paths:
 random.shuffle(file_paths)
 
 # Load the dataset
-dataset = SepctraDataset(file_paths)
+dataset = SpectraDataset(file_paths)
 
 # Training params 
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
 patience = 2
-dropout = 0.3
-weight_decay = 0.001
+dropout = 0.4
+weight_decay = 0.01
 dilation = 2
 
 class_names = ['STAR', 'GALAXY', 'QSO']
@@ -75,6 +79,9 @@ test_loader = DataLoader(
     test_dataset, batch_size=BATCH_SIZE,
     collate_fn=collate_fn, shuffle=False
 )
+
+
+
 
 def evaluate(model, dataloader, class_names, type="Test"):
     """
@@ -151,7 +158,7 @@ def evaluate(model, dataloader, class_names, type="Test"):
 
     return accuracy
 
-def train(model, criterion, optimizer, scheduler, NUM_EPOCHS):
+def train(model, criterion, optimizer,  NUM_EPOCHS=NUM_EPOCHS):
     """
     Train the model.
 
@@ -231,7 +238,7 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
         Path to save the model to.
     """
     # save and log 
-    save_dir = 'cnn_saved_models'
+    save_dir = 'experiment_results/cnn_saved_models'
     os.makedirs(save_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = os.path.join(save_dir, f'{timestamp}_model.pth')
@@ -265,16 +272,17 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
     print(f"Hyperparameters saved to {hyperparams_path}")
 
 
-early_stopping = EarlyStopping(patience=patience, verbose=True)
+# early_stopping = EarlyStopping(patience=patience, verbose=True)
 
-### Training and evaluation 
-# model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
+# ### Training and evaluation 
+model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
 # model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 #model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+#model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
 #model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
 #model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
+model.to("cuda" if torch.cuda.is_available() else "cpu")
 print(torchinfo.summary(model))
 
 criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
@@ -283,14 +291,5 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")
-save_model(model, loss_fcn="FocalLoss")
-
-#### loading sample code 
-# load the model 
-# model2= FullFeaturesCNN(NUM_CLASSES)
-# model2.load_state_dict(torch.load('cnn_saved_models/2025-03-19_13-17-32_model.pth'))
-
-# model2.eval()
-# val_accuracy = evaluate(model2, test_loader, class_names)
-
+# save_model(model, loss_fcn="FocalLoss")
 

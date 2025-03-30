@@ -1,22 +1,22 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from cnn_models import FullFeaturesCNN
-from data_model import SepctraDataset, collate_fn
+from cnn_experiments.cnn_models import FullFeaturesResNet
+from data_model import SpectraDataset, collate_fn
 from torch.utils.data import DataLoader
 import os
 import glob
 
 # Load the model
-model_path = 'model/cnn_saved_models/2025-03-20_10-24-47_model.pth'
-model = FullFeaturesCNN(NUM_CLASSES=3)
+model_path = 'model/experiment_results/cnn_saved_models/2025-03-24_13-30-03_model.pth'
+model = FullFeaturesResNet(NUM_CLASSES=3)
 model.load_state_dict(torch.load(model_path))
 model.eval()
 
 # Load a subset of data
 base_dir = 'data/full_zwarning'
-file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:300] 
-dataset = SepctraDataset(file_paths)
+file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:200] 
+dataset = SpectraDataset(file_paths)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn, shuffle=False)
 
 def compute_feature_importance(model, dataloader):
