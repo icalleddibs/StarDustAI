@@ -15,7 +15,7 @@ import torchinfo
 from torch.utils.data import DataLoader, random_split
 import torch.nn.utils as utils
 from data_model import SpectraDataset, collate_fn
-from cnn_model import FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
+from cnn_model import FullFeaturesResNet, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
@@ -76,7 +76,7 @@ test_loader = DataLoader(
     collate_fn=collate_fn, shuffle=False
 )
 
-def evaluate(model, dataloader, class_names, type="Test"):
+def evaluate(model, dataloader, class_names =['STAR', 'GALAXY', 'QSO'], type="Test"):
     """
     Evaluate model performance, calculate validation accuracy, plot confusion matrix,
     and print classification metrics.
@@ -264,14 +264,8 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
     print(f"Model saved to {model_path}")
     print(f"Hyperparameters saved to {hyperparams_path}")
 
-
-
 ### Training and evaluation 
 if __name__ == "__main__":
-    #model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
-    #model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-    #model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
-    #model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
     model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
     model.train() 
     print(torchinfo.summary(model))

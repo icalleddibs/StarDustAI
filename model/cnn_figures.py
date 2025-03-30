@@ -5,7 +5,7 @@ import torch
 import os
 from tqdm import tqdm
 from glob import glob
-from cnn_training import test_loader
+from cnn_training import test_loader, evaluate
 from cnn_experiments.cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers
 from sklearn.metrics import classification_report
 
@@ -26,7 +26,10 @@ models = {
     "FullFeaturesCNNMoreLayers": FullFeaturesCNNMoreLayers,
     "FullFeaturesResNet": FullFeaturesResNet}
 
-# Dictionary to store reports
+# restnet = FullFeaturesResNet()
+# restnet.load_state_dict(torch.load(model_files[4]))
+# evaluate(restnet, test_loader, type="Test")
+# # Dictionary to store reports
 model_reports = {}
 
 for i, model_path in enumerate(model_files):
@@ -80,16 +83,16 @@ for model_name, report in model_reports.items():
     
     data.append([model_name, accuracy, f1_score, recall, precision, success_count])
 
-data.append(["XGBoost", 0.86, 0.92, 0.92, 0.92, 4])
+data.append(["XGBoost", 0.99, 0.99, 0.99, 0.99, 4])
 
 
 # Create DataFrame
 columns = [
     "Model",
-    f"Accuracy ({int(thresholds['Accuracy']*100)}%)",
-    f"F1-Score ({int(thresholds['F1-Score']*100)}%)",
-    f"Recall ({int(thresholds['Recall']*100)}%)",
-    f"Precision ({int(thresholds['Precision']*100)}%)",
+    f"Accuracy (>{int(thresholds['Accuracy']*100)}%)",
+    f"F1-Score (>{int(thresholds['F1-Score']*100)}%)",
+    f"Recall (>{int(thresholds['Recall']*100)}%)",
+    f"Precision (>{int(thresholds['Precision']*100)}%)",
     "# Successes"
 ]
 df = pd.DataFrame(data, columns=columns)

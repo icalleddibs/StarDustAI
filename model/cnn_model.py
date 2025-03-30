@@ -41,63 +41,6 @@ class FullFeaturesResNet(nn.Module):
         return logits
 
 
-
-class FullFeaturesCNNMoreLayers(nn.Module):
-    """
-    CNN model for flux-based classification with all features used as CNN input.
-    """
-    def __init__(self, NUM_CLASSES=3, num_global_features=12, dropout_rate=0.3):
-        super(FullFeaturesCNNMoreLayers, self).__init__()
-
-        self.conv1 = nn.Conv1d(in_channels=1 + num_global_features, out_channels=16, kernel_size=3, stride=1, padding=1)
-        self.ln1 = nn.BatchNorm1d(16)
-
-        self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.ln2 = nn.BatchNorm1d(32)
-        
-        self.conv3 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.ln3 = nn.BatchNorm1d(64)
-        
-        self.conv4 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
-        self.ln4 = nn.BatchNorm1d(128)
-        
-        self.pool = nn.AdaptiveAvgPool1d(1)
-        self.dropout = nn.Dropout(p=dropout_rate)
-        self.fc = nn.Linear(128, NUM_CLASSES)
-
-    def forward(self, x):
-        flux = x[:, :, 0]  
-        global_features = x[:, 0, 2:]
-
-        # Expand global features to match flux length
-        global_features = global_features.unsqueeze(2).expand(-1, -1, flux.size(1))
-
-        flux = flux.unsqueeze(1)
-        combined_input = torch.cat((flux, global_features), dim=1)
-
-        out = F.relu(self.conv1(combined_input))
-        out = self.ln1(out)
-        out = self.dropout(out)
-
-        out = F.relu(self.conv2(out))
-        out = self.ln2(out)
-        out = self.dropout(out)
-        
-        out = F.relu(self.conv3(out))
-        out = self.ln3(out)
-        out = self.dropout(out)
-        
-        out = F.relu(self.conv4(out))
-        out = self.ln4(out)
-        out = self.dropout(out)
-
-        out = self.pool(out).squeeze(2)
-        out = self.dropout(out)  
-        logits = self.fc(out)
-
-        return logits
-
-
 ##### Other helper classes #####
 
 class EarlyStopping:
