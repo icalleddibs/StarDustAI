@@ -1,10 +1,14 @@
 import glob
 import random 
 import os 
+import sys
 import subprocess
 from tqdm import tqdm 
 from datetime import datetime
 import time
+
+# Append model to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Deep Learning
 import torch
@@ -50,8 +54,8 @@ NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
 patience = 2
-dropout = 0.3
-weight_decay = 0.001
+dropout = 0.4
+weight_decay = 0.0001
 dilation = 2
 
 class_names = ['STAR', 'GALAXY', 'QSO']
@@ -151,7 +155,7 @@ def evaluate(model, dataloader, class_names, type="Test"):
 
     return accuracy
 
-def train(model, criterion, optimizer, scheduler, NUM_EPOCHS):
+def train(model, criterion, optimizer,  NUM_EPOCHS=NUM_EPOCHS):
     """
     Train the model.
 
@@ -231,7 +235,7 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
         Path to save the model to.
     """
     # save and log 
-    save_dir = 'cnn_saved_models'
+    save_dir = 'experiment_results/cnn_saved_models'
     os.makedirs(save_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = os.path.join(save_dir, f'{timestamp}_model.pth')
@@ -268,29 +272,23 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
 early_stopping = EarlyStopping(patience=patience, verbose=True)
 
 ### Training and evaluation 
-# model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
-# model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+# Uncomment the model you want to train
+
+#model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
+#model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
 #model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+#model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
 #model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
-#model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
+model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 print(torchinfo.summary(model))
 
 criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1)
+
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")
 save_model(model, loss_fcn="FocalLoss")
-
-#### loading sample code 
-# load the model 
-# model2= FullFeaturesCNN(NUM_CLASSES)
-# model2.load_state_dict(torch.load('cnn_saved_models/2025-03-19_13-17-32_model.pth'))
-
-# model2.eval()
-# val_accuracy = evaluate(model2, test_loader, class_names)
-
 

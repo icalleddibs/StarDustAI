@@ -57,7 +57,7 @@ class AllFeaturesCNN(nn.Module):
         self.fc = nn.Linear(32 + num_global_features, NUM_CLASSES)
 
     def forward(self, x):
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        flux = x[:, :, 0] 
         flux = flux.unsqueeze(1)
 
         out = F.leaky_relu(self.conv1(flux))
@@ -74,7 +74,7 @@ class AllFeaturesCNN(nn.Module):
         global_features = x[:, 0, 2:]  
         combined = torch.cat((out, global_features), dim=1)
 
-        combined = self.dropout(combined)  # Dropout before FC
+        combined = self.dropout(combined)  
         logits = self.fc(combined)
         return logits
 
@@ -95,7 +95,7 @@ class FullFeaturesCNN(nn.Module):
         self.fc = nn.Linear(32, NUM_CLASSES)
 
     def forward(self, x):
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        flux = x[:, :, 0]
         global_features = x[:, 0, 2:]
 
         # Expand global features to match flux length
@@ -114,7 +114,7 @@ class FullFeaturesCNN(nn.Module):
 
         out = self.pool(out).squeeze(2)
 
-        out = self.dropout(out)  # Dropout before FC
+        out = self.dropout(out)  
         logits = self.fc(out)
         return logits
     
@@ -150,7 +150,7 @@ class DilatedFullFeaturesCNN(nn.Module):
         self.fc = nn.Linear(32, NUM_CLASSES)
 
     def forward(self, x):
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        flux = x[:, :, 0]
         global_features = x[:, 0, 2:]
 
         # Expand global features to match flux length
@@ -172,7 +172,7 @@ class DilatedFullFeaturesCNN(nn.Module):
         # Global average pooling
         out = self.pool(out).squeeze(2)
 
-        out = self.dropout(out)  # Dropout before FC
+        out = self.dropout(out)  
         logits = self.fc(out)
         return logits
 
@@ -193,7 +193,7 @@ class FullFeaturesResNet(nn.Module):
         self.dropout = nn.Dropout(p=dropout_rate)
 
     def forward(self, x):
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        flux = x[:, :, 0]  
         global_features = x[:, 0, 2:]
 
         # Expand global features to match flux length
@@ -208,7 +208,7 @@ class FullFeaturesResNet(nn.Module):
         out = self.res_block2(out)
 
         out = self.pool(out).squeeze(2)
-        out = self.dropout(out)  # Dropout before FC
+        out = self.dropout(out)  
         logits = self.fc(out)
         return logits
 
@@ -238,7 +238,7 @@ class FullFeaturesCNNMoreLayers(nn.Module):
         self.fc = nn.Linear(128, NUM_CLASSES)
 
     def forward(self, x):
-        flux = x[:, :, 0]  # shape: (batch_size, max_rows)
+        flux = x[:, :, 0] 
         global_features = x[:, 0, 2:]
 
         # Expand global features to match flux length
@@ -264,7 +264,7 @@ class FullFeaturesCNNMoreLayers(nn.Module):
         out = self.dropout(out)
 
         out = self.pool(out).squeeze(2)
-        out = self.dropout(out)  # Dropout before FC
+        out = self.dropout(out)  
         logits = self.fc(out)
 
         return logits
@@ -349,7 +349,6 @@ class ResidualBlock(nn.Module):
         out = F.leaky_relu(self.bn2(self.conv2(out)))
         out = self.dropout(out)
 
-        # Adjust dimensions if necessary
         if self.residual_projection is not None:
             identity = self.residual_projection(identity)
 

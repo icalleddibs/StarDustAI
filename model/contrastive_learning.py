@@ -20,8 +20,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from cnn_models import FullFeaturesCNN  # modify this with your model
-from cnn_experiments import train_loader, NUM_CLASSES   # this is for loading data
+from cnn_experiments.cnn_models import FullFeaturesCNN  # modify this with your model
+from cnn_training import train_loader, NUM_CLASSES   # this is for loading data
 
 import numpy as np
 from sklearn.decomposition import PCA

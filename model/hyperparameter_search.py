@@ -1,8 +1,8 @@
 import torch
 import torchinfo
 import itertools
-from cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers
-from cnn_experiments import train, evaluate, save_model
+from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers
+from cnn_training import train, evaluate, save_model
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from data_model import SepctraDataset, collate_fn

@@ -1,14 +1,14 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from cnn_models import FullFeaturesResNet
+from cnn_experiments.cnn_models import FullFeaturesResNet
 from data_model import SepctraDataset, collate_fn
 from torch.utils.data import DataLoader
 import os
 import glob
 
 # Load the model
-model_path = 'model/cnn_saved_models/2025-03-24_13-30-03_model.pth'
+model_path = 'model/experiment_results/cnn_saved_models/2025-03-24_13-30-03_model.pth'
 model = FullFeaturesResNet(NUM_CLASSES=3)
 model.load_state_dict(torch.load(model_path))
 model.eval()
