@@ -14,7 +14,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 import torch.nn.utils as utils
-from data_model import SepctraDataset, collate_fn
+from data_model import SpectraDataset, collate_fn
 from cnn_model import FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
@@ -42,10 +42,10 @@ if not file_paths:
 random.shuffle(file_paths)
 
 # Load the dataset
-dataset = SepctraDataset(file_paths)
+dataset = SpectraDataset(file_paths)
 
 # Training params 
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
@@ -265,20 +265,21 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
     print(f"Hyperparameters saved to {hyperparams_path}")
 
 
-early_stopping = EarlyStopping(patience=patience, verbose=True)
 
 ### Training and evaluation 
-#model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-#model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
-#model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
-model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
-model.train() 
-print(torchinfo.summary(model))
-
-criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
-optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1)
-training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
-val_accuracy = evaluate(model, val_loader, class_names, "Validation")
-test_accuracy = evaluate(model, test_loader, class_names, "Test")
-save_model(model, loss_fcn="FocalLoss")
+if __name__ == "__main__":
+    #model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
+    #model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+    #model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+    #model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
+    model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
+    model.train() 
+    print(torchinfo.summary(model))
+    early_stopping = EarlyStopping(patience=patience)
+    criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1)
+    training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
+    val_accuracy = evaluate(model, val_loader, class_names, "Validation")
+    test_accuracy = evaluate(model, test_loader, class_names, "Test")
+    save_model(model, loss_fcn="FocalLoss")

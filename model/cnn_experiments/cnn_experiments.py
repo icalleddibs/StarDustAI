@@ -18,8 +18,7 @@ import torch.optim as optim
 import torchinfo
 from torch.utils.data import DataLoader, random_split
 import torch.nn.utils as utils
-#from data_model import SepctraDataset, collate_fn
-from contrastive_loading import SpectraDataset, collate_fn
+from data_model import SpectraDataset, collate_fn
 from cnn_models import SimpleFluxCNN, AllFeaturesCNN, FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
@@ -35,13 +34,9 @@ from sklearn.metrics import confusion_matrix, classification_report
 random.seed(42)
 
 # # Get the repo root (assumes script is inside STARDUSTAI/)
-# repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-# base_dir = os.path.join(repo_root, "data/full_zwarning")
-# file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
-
-# Set up paths and other variables
-BASE_DIR = "E:/StarDustAI/data/full_zwarning/full_zwarning"
-file_paths = glob.glob(os.path.join(BASE_DIR, '**/*.pkl'), recursive=True)
+repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+base_dir = os.path.join(repo_root, "data/full_zwarning")
+file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
 
 # If no files are found, raise an error
 if not file_paths:
@@ -54,13 +49,13 @@ random.shuffle(file_paths)
 dataset = SpectraDataset(file_paths)
 
 # Training params 
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
 patience = 2
 dropout = 0.4
-weight_decay = 0.0001
+weight_decay = 0.01
 dilation = 2
 
 class_names = ['STAR', 'GALAXY', 'QSO']
@@ -76,14 +71,17 @@ train_loader = DataLoader(
     train_dataset, batch_size=BATCH_SIZE,
     collate_fn=collate_fn, shuffle=True, pin_memory=True
 )
-# val_loader = DataLoader(
-#     val_dataset, batch_size=BATCH_SIZE,
-#     collate_fn=collate_fn, shuffle=False
-# )
-# test_loader = DataLoader(
-#     test_dataset, batch_size=BATCH_SIZE,
-#     collate_fn=collate_fn, shuffle=False
-# )
+val_loader = DataLoader(
+    val_dataset, batch_size=BATCH_SIZE,
+    collate_fn=collate_fn, shuffle=False
+)
+test_loader = DataLoader(
+    test_dataset, batch_size=BATCH_SIZE,
+    collate_fn=collate_fn, shuffle=False
+)
+
+
+
 
 def evaluate(model, dataloader, class_names, type="Test"):
     """
@@ -277,29 +275,21 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
 # early_stopping = EarlyStopping(patience=patience, verbose=True)
 
 # ### Training and evaluation 
-# # model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
-# # model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-# #model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
-# model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
-# #model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
-# #model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
-# model.train() 
-# print(torchinfo.summary(model))
+model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
+# model = AllFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout)
+#model  = DilatedFullFeaturesCNN(NUM_CLASSES, dropout_rate=dropout, dilation=dilation)
+#model = FullFeaturesCNNMoreLayers(NUM_CLASSES, dropout_rate=dropout)
+#model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
+model.train() 
+model.to("cuda" if torch.cuda.is_available() else "cpu")
+print(torchinfo.summary(model))
 
-# criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
-# optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
-# training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
-# val_accuracy = evaluate(model, val_loader, class_names, "Validation")
-# test_accuracy = evaluate(model, test_loader, class_names, "Test")
+criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
+training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
+val_accuracy = evaluate(model, val_loader, class_names, "Validation")
+test_accuracy = evaluate(model, test_loader, class_names, "Test")
 # save_model(model, loss_fcn="FocalLoss")
-
-# #### loading sample code 
-# # load the model 
-# # model2= FullFeaturesCNN(NUM_CLASSES)
-# # model2.load_state_dict(torch.load('cnn_saved_models/2025-03-19_13-17-32_model.pth'))
-
-# # model2.eval()
-# # val_accuracy = evaluate(model2, test_loader, class_names)
-
 

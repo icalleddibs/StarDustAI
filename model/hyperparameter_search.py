@@ -5,7 +5,7 @@ from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, DilatedFullFeat
 from cnn_training import train, evaluate, save_model
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
-from data_model import SepctraDataset, collate_fn
+from data_model import SpectraDataset, collate_fn
 import glob
 import os
 import subprocess
@@ -20,7 +20,7 @@ if not file_paths:
     raise ValueError("No FITS files found in 'data/full_zwarning/'")
 
 random.shuffle(file_paths)
-dataset = SepctraDataset(file_paths)
+dataset = SpectraDataset(file_paths)
 
 # Split dataset
 train_size = int(0.7 * len(dataset))
