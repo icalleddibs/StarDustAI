@@ -20,7 +20,7 @@ class SimpleFluxCNN(nn.Module):
         self.dropout = nn.Dropout(p=dropout_rate)
         self.fc = nn.Linear(32, NUM_CLASSES)
 
-    def forward(self, x):
+    def forward(self, x, return_embedding=False):
         flux = x[:, :, 0]  # shape: (batch_size, max_rows)
         flux = flux.unsqueeze(1)
 
@@ -33,6 +33,9 @@ class SimpleFluxCNN(nn.Module):
         out = self.dropout(out)
 
         out = self.pool(out).squeeze(2)
+        
+        if return_embedding:
+            return out
 
         out = self.dropout(out) 
         logits = self.fc(out)

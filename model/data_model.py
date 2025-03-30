@@ -4,7 +4,7 @@ import numpy as np
 import pickle as pkl
 
 
-class SepctraDataset(Dataset): 
+class SpectraDataset(Dataset): 
     """
     Custom PyTorch dataset for loading preprocessed SDSS spectra data.
     """
