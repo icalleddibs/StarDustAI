@@ -15,7 +15,7 @@ import torchinfo
 from torch.utils.data import DataLoader, random_split
 import torch.nn.utils as utils
 from data_model import SepctraDataset, collate_fn
-from cnn_model import FullFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
+from cnn_model import FullFeaturesResNet, FullFeaturesCNNMoreLayers, EarlyStopping, FocalLoss
 
 # Scientific Python 
 import numpy as np
