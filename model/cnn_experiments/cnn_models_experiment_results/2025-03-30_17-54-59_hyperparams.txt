@@ -1,0 +1,16 @@
+Hyperparameters and Results:
+model: SimpleFluxCNN
+learning_rate: 0.001
+batch_size: 32
+num_epochs: 3
+patience: 2
+dropout: 0.4
+weight_decay: 0.01
+num_classes: 3
+train_size: 8796
+val_size: 1884
+test_size: 1886
+validation_accuracy: 67.62208067940551
+test_accuracy: 68.13361611876988
+training time: 2159
+loss function: FocalLoss

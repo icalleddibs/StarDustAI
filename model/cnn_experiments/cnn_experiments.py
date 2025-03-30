@@ -238,7 +238,7 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
         Path to save the model to.
     """
     # save and log 
-    save_dir = 'experiment_results/cnn_saved_models'
+    save_dir = 'cnn_models_experiment_results'
     os.makedirs(save_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = os.path.join(save_dir, f'{timestamp}_model.pth')
@@ -289,7 +289,8 @@ criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
+training_time = 2159
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")
-# save_model(model, loss_fcn="FocalLoss")
+save_model(model, loss_fcn="FocalLoss")
 
