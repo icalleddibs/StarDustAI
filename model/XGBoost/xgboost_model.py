@@ -18,6 +18,17 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import LabelEncoder
 
+import gc
+
+# Delete the large NumPy array
+try:
+    del X  
+    print("Deleted X")
+except NameError:
+    pass  # X might not exist yet
+
+gc.collect()  # Force garbage collection
+
 '''
 This script demonstrates how to train an XGBoost model on a dataset of pickle files.
 It loads the data from the pickle files, preprocesses it to the correct size, and trains an XGBoost model.
@@ -146,59 +157,81 @@ print(f"Validation Accuracy: {accuracy:.4f}")
 print("Classification Report:")
 print(classification_report(y_val, y_pred_labels, target_names=label_encoder.classes_))
 
-# Confusion Matrix
+# # Confusion Matrix
+# cm = confusion_matrix(y_val, y_pred_labels)
+# # cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] 
+# cm_percentage = np.round(cm_percentage, 1) # ADD PERCENTAGE?
+# print("Confusion Matrix For Test Data:")
+# print(cm_percentage)
+
+# Compute confusion matrix
 cm = confusion_matrix(y_val, y_pred_labels)
-cm_percentage = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
-print("Confusion Matrix (Percentages):")
-print(cm_percentage)
 
-# Display confusion matrix
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
-disp.plot(cmap=plt.cm.Blues)
-plt.show()
+# Convert to percentage
+cm_percentage = cm.astype(float) / cm.sum(axis=1, keepdims=True)
 
-# Display confusion matrix with percentages
-plt.figure(figsize=(8,6))
-sns.heatmap(cm_percentage, annot=True, fmt=".2f", cmap="Blues", xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
+# Plot heatmap
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    cm_percentage, 
+    annot=True, 
+    fmt=".1%",  # Automatically adds '%' sign
+    cmap="Blues", 
+    xticklabels=label_encoder.classes_, 
+    yticklabels=label_encoder.classes_
+)
+plt.title("Confusion Matrix (Percentage)")
 plt.xlabel("Predicted Label")
 plt.ylabel("True Label")
-plt.title("Confusion Matrix (Percentage)")
 plt.show()
 
-# Feature importance
-booster = bst  # bst is already a booster object
-correct_feature_names = ["flux", "loglam", "ivar", "model",
-                         "z", "z_err", 
-                         "sn_median_uv", "sn_median_r", "sn_median_nir", "sn_median_ir",
-                         "zwarning", "rchi2"]
+# # Display confusion matrix
+# disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
+# disp.plot(cmap=plt.cm.Blues)
+# plt.show()
 
-feature_importance = booster.get_score(importance_type='weight')
-print("Feature Importance Keys from XGBoost:", feature_importance.keys())
-mapped_importance = defaultdict(int)  # Default to 0 for missing features
+# # Display confusion matrix with percentages
+# plt.figure(figsize=(8,6))
+# sns.heatmap(cm_percentage, annot=True, fmt=".2f", cmap="Blues", xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
+# plt.xlabel("Predicted Label")
+# plt.ylabel("True Label")
+# plt.title("Confusion Matrix For Test Data")
+# plt.show()
 
-for f, imp in feature_importance.items():
-    if f.startswith("f"):  
-        try:
-            idx = int(f[1:])  # Get the feature index and find the correct feature name
-            if 0 <= idx < len(correct_feature_names): 
-                mapped_importance[correct_feature_names[idx]] = imp
-            else:
-                print(f"Warning: Feature index {idx} out of range, skipping...")
-        except ValueError:
-            print(f"Warning: Unexpected feature format '{f}' ignored.")
+# # Feature importance
+# booster = bst  # bst is already a booster object
+# correct_feature_names = ["flux", "loglam", "ivar", "model",
+#                          "z", "z_err", 
+#                          "sn_median_uv", "sn_median_r", "sn_median_nir", "sn_median_ir",
+#                          "zwarning", "rchi2"]
 
-sorted_importance = sorted(mapped_importance.items(), key=lambda x: x[1], reverse=True)  # Sort by importance
-feature_names, importance_values = zip(*sorted_importance)
+# feature_importance = booster.get_score(importance_type='weight')
+# print("Feature Importance Keys from XGBoost:", feature_importance.keys())
+# mapped_importance = defaultdict(int)  # Default to 0 for missing features
 
-print("\nFeature Importance Values:")
-for name, importance in sorted_importance:
-    print(f"{name}: {importance}")
+# for f, imp in feature_importance.items():
+#     if f.startswith("f"):  
+#         try:
+#             idx = int(f[1:])  # Get the feature index and find the correct feature name
+#             if 0 <= idx < len(correct_feature_names): 
+#                 mapped_importance[correct_feature_names[idx]] = imp
+#             else:
+#                 print(f"Warning: Feature index {idx} out of range, skipping...")
+#         except ValueError:
+#             print(f"Warning: Unexpected feature format '{f}' ignored.")
 
-plt.figure(figsize=(10, 6))
-plt.barh(feature_names, importance_values, color='skyblue')
-plt.xlabel('Importance')
-plt.ylabel('Feature')
-plt.title('Feature Importance (Corrected)')
-plt.gca().invert_yaxis() 
-plt.grid(axis='x', linestyle='--', alpha=0.7) 
-plt.show()
+# sorted_importance = sorted(mapped_importance.items(), key=lambda x: x[1], reverse=True)  # Sort by importance
+# feature_names, importance_values = zip(*sorted_importance)
+
+# print("\nFeature Importance Values:")
+# for name, importance in sorted_importance:
+#     print(f"{name}: {importance}")
+
+# plt.figure(figsize=(10, 6))
+# plt.barh(feature_names, importance_values, color='skyblue')
+# plt.xlabel('Importance')
+# plt.ylabel('Feature')
+# plt.title('Feature Importance (Corrected)')
+# plt.gca().invert_yaxis() 
+# plt.grid(axis='x', linestyle='--', alpha=0.7) 
+# plt.show()
