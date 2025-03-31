@@ -185,18 +185,8 @@ plt.xlabel("Predicted Label")
 plt.ylabel("True Label")
 plt.show()
 
-# # Display confusion matrix
-# disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
-# disp.plot(cmap=plt.cm.Blues)
-# plt.show()
-
-# # Display confusion matrix with percentages
-# plt.figure(figsize=(8,6))
-# sns.heatmap(cm_percentage, annot=True, fmt=".2f", cmap="Blues", xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_)
-# plt.xlabel("Predicted Label")
-# plt.ylabel("True Label")
-# plt.title("Confusion Matrix For Test Data")
-# plt.show()
+''' The XGB Feature Importance did not work to our expectations, thus only included for completeness. 
+The following code was utilized to produce "feat-_.png" figures in /xgb_figures '''
 
 # # Feature importance
 # booster = bst  # bst is already a booster object
