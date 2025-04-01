@@ -17,7 +17,7 @@ base_dir = os.path.join(repo_root, "data/full_zwarning")
 file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
 
 if not file_paths:
-    raise ValueError("No FITS files found in 'data/full_zwarning/'")
+    raise ValueError("No PKL files found in 'data/full_zwarning/'")
 
 random.shuffle(file_paths)
 dataset = SpectraDataset(file_paths)

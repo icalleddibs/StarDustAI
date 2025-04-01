@@ -8,7 +8,7 @@ import os
 import glob
 
 # Load the model
-model_path = 'model/experiment_results/cnn_saved_models/2025-03-24_13-30-03_model.pth'
+model_path = 'model/cnn_experiments/cnn_models_experiment_results/2025-03-24_13-30-03_model.pth'
 model = FullFeaturesResNet(NUM_CLASSES=3)
 model.load_state_dict(torch.load(model_path))
 model.eval()
