@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchinfo
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset, random_split
 import torch.nn.utils as utils
 from data_model import SpectraDataset, collate_fn
 from cnn_model import FullFeaturesResNet, EarlyStopping, FocalLoss
@@ -21,10 +21,9 @@ from cnn_model import FullFeaturesResNet, EarlyStopping, FocalLoss
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd 
-import plotly as px 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import KFold
+
 
 # set seed for reproducibility 
 random.seed(42)
@@ -169,7 +168,7 @@ def train(model, criterion, optimizer,  NUM_EPOCHS=NUM_EPOCHS):
     start_time = time.time()
     pbar = tqdm(range(NUM_EPOCHS))
     early_stopping = EarlyStopping(patience=patience, verbose=True)
-
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1)
     for epoch in pbar:
         model.train()
         running_loss = 0.0
@@ -264,8 +263,52 @@ def save_model(model, loss_fcn= "CrossEntropyLoss"):
     print(f"Model saved to {model_path}")
     print(f"Hyperparameters saved to {hyperparams_path}")
 
+
+def k_fold_cross_validation(dataset, k=5):
+    """
+    Perform k-fold cross-validation on the dataset.
+    
+    Parameters:
+    - dataset: The entire dataset.
+    - k: Number of folds.
+    
+    Returns:
+    - Average validation accuracy across folds.
+    """
+    kfold = KFold(n_splits=k, shuffle=True, random_state=42)
+    fold_accuracies = []
+
+    for fold, (train_idx, val_idx) in enumerate(kfold.split(dataset)):
+        print(f"\nFold {fold+1}/{k}")
+
+        # Create train and validation datasets for this fold
+        train_subset = Subset(dataset, train_idx)
+        val_subset = Subset(dataset, val_idx)
+        train_loader = DataLoader(train_subset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+        val_loader = DataLoader(val_subset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+
+        # Initialize the model for each fold
+        model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
+        model.train()
+        criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+
+        # Train model on this fold
+        training_time = train(model, criterion, optimizer, 2)
+
+        # Evaluate on validation set
+        val_accuracy = evaluate(model, val_loader, class_names, f"Validation (Fold {fold+1})")
+        fold_accuracies.append(val_accuracy)
+
+    # Compute average validation accuracy
+    avg_val_accuracy = np.mean(fold_accuracies)
+    print(f"\nAverage Validation Accuracy Across {k} Folds: {avg_val_accuracy:.2f}%")
+    return avg_val_accuracy
+
+
 ### Training and evaluation 
 if __name__ == "__main__":
+    # Initialize, train, and evaluate the model
     model = FullFeaturesResNet(NUM_CLASSES, dropout_rate=dropout)
     model.train() 
     print(torchinfo.summary(model))
@@ -277,3 +320,7 @@ if __name__ == "__main__":
     val_accuracy = evaluate(model, val_loader, class_names, "Validation")
     test_accuracy = evaluate(model, test_loader, class_names, "Test")
     save_model(model, loss_fcn="FocalLoss")
+
+    # Perform k-fold cross-validation
+    k = 5  # Number of folds
+    avg_accuracy = k_fold_cross_validation(dataset, k)

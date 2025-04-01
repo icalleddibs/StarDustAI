@@ -54,7 +54,7 @@ NUM_CLASSES = 3
 NUM_EPOCHS = 3
 learning_rate = 0.001
 patience = 2
-dropout = 0.4
+dropout = 0.0
 weight_decay = 0.01
 dilation = 2
 
@@ -284,12 +284,11 @@ model = SimpleFluxCNN(NUM_CLASSES, dropout_rate=dropout)
 model.train() 
 model.to("cuda" if torch.cuda.is_available() else "cpu")
 print(torchinfo.summary(model))
-
+#criterion = nn.CrossEntropyLoss()
 criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, verbose=True)
 training_time = train(model, criterion, optimizer, NUM_EPOCHS) 
-training_time = 2159
 val_accuracy = evaluate(model, val_loader, class_names, "Validation")
 test_accuracy = evaluate(model, test_loader, class_names, "Test")
 save_model(model, loss_fcn="FocalLoss")
