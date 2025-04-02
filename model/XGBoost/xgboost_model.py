@@ -18,17 +18,6 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import LabelEncoder
 
-import gc
-
-# Delete the large NumPy array
-try:
-    del X  
-    print("Deleted X")
-except NameError:
-    pass  # X might not exist yet
-
-gc.collect()  # Force garbage collection
-
 '''
 This script demonstrates how to train an XGBoost model on a dataset of pickle files.
 It loads the data from the pickle files, preprocesses it to the correct size, and trains an XGBoost model.
@@ -53,7 +42,7 @@ def pad_or_truncate(array, max_length=MAX_LENGTH):
         return array[:max_length]                                            # Truncate if too long
     elif array_len < max_length:
         return np.pad(array, (0, max_length - array_len), mode='constant')   # Pad if too short
-    return array                                                             # No change if max size
+    return array                                                             # No change if equal to max size
 
 # Load all pickle files
 for pickle_file in tqdm(FILE_PATHS, desc="Loading Pickle Files", unit="file"):
@@ -61,7 +50,7 @@ for pickle_file in tqdm(FILE_PATHS, desc="Loading Pickle Files", unit="file"):
         with open(pickle_file, 'rb') as f:
             data = pickle.load(f)
             
-            # Get the features and labels
+            # Get the features and labels by truncating/padding to the same size
             features = np.column_stack([
                 pad_or_truncate(data["flux"], MAX_LENGTH),
                 pad_or_truncate(data["loglam"], MAX_LENGTH),
@@ -80,7 +69,7 @@ for pickle_file in tqdm(FILE_PATHS, desc="Loading Pickle Files", unit="file"):
             X.append(features)
             y.append(data["CLASS"][0])
     
-    # To handle incorrectly formatted pickle files
+    # To handle the occasional incorrectly formatted pickle files
     except Exception as e:
         print(f"Error loading {pickle_file}: {e}")
 
@@ -125,7 +114,7 @@ class TQDMProgressBar(xgb.callback.TrainingCallback):
 
     def after_iteration(self, model, epoch, evals_log):
         self.pbar.update(1)
-        return False  # Return False to continue training
+        return False 
 
     def after_training(self, model):
         self.pbar.close()
@@ -157,30 +146,23 @@ print(f"Validation Accuracy: {accuracy:.4f}")
 print("Classification Report:")
 print(classification_report(y_val, y_pred_labels, target_names=label_encoder.classes_))
 
-# # Confusion Matrix
-# cm = confusion_matrix(y_val, y_pred_labels)
-# # cm_percentage = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis] 
-# cm_percentage = np.round(cm_percentage, 1) # ADD PERCENTAGE?
-# print("Confusion Matrix For Test Data:")
-# print(cm_percentage)
-
 # Compute confusion matrix
 cm = confusion_matrix(y_val, y_pred_labels)
 
-# Convert to percentage
+# Convert to percentage for formatting
 cm_percentage = cm.astype(float) / cm.sum(axis=1, keepdims=True)
 
-# Plot heatmap
+# Display confusion matrix
 plt.figure(figsize=(6, 5))
 sns.heatmap(
     cm_percentage, 
     annot=True, 
-    fmt=".1%",  # Automatically adds '%' sign
+    fmt=".1%",
     cmap="Blues", 
     xticklabels=label_encoder.classes_, 
     yticklabels=label_encoder.classes_
 )
-plt.title("Confusion Matrix (Percentage)")
+plt.title("Confusion MatrixFor Test Data")
 plt.xlabel("Predicted Label")
 plt.ylabel("True Label")
 plt.show()
