@@ -15,7 +15,7 @@ model.eval()
 
 # Load a subset of data
 base_dir = 'data/full_zwarning'
-file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:200] 
+file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:300] 
 dataset = SpectraDataset(file_paths)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn, shuffle=False)
 
@@ -45,14 +45,12 @@ feature_importance = compute_feature_importance(model, dataloader)
 
 # Adjust feature names to match the number of importance values
 num_importance_values = len(feature_importance[0])
-feature_names = ['flux', 'loglam', 'ivar', 'model','PLATESN2', 'Z', 
+feature_names = ['ivar', 'model','PLATESN2', 'Z', 
                  'Z_ERR', 'ZWARNING', 'RCHI2', 'PLATEQUALITY', 'snr_uv', 
                  'snr_r', 'snr_nir', 'snr_ir']
 
-print(feature_importance)
-# Plot feature importance
 plt.figure(figsize=(12, 6))
-plt.bar(feature_names, feature_importance[0])
+plt.bar(feature_names, feature_importance)
 plt.title('Feature Importance')
 plt.xlabel('Features')
 plt.ylabel('Importance Score')
