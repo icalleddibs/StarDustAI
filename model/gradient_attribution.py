@@ -43,14 +43,17 @@ def compute_feature_importance(model, dataloader):
 # Compute feature importance
 feature_importance = compute_feature_importance(model, dataloader)
 
-# Adjust feature names to match the number of importance values
-num_importance_values = len(feature_importance[0])
-feature_names = ['ivar', 'model','PLATESN2', 'Z', 
+feature_names = ['flux', 'loglam', 'ivar', 'model','PLATESN2', 'Z', 
                  'Z_ERR', 'ZWARNING', 'RCHI2', 'PLATEQUALITY', 'snr_uv', 
                  'snr_r', 'snr_nir', 'snr_ir']
 
+final_features = []
+for f in feature_names:
+    final_features.append(feature_importance[0][feature_names.index(f)])
+
+# Plot feature importance
 plt.figure(figsize=(12, 6))
-plt.bar(feature_names, feature_importance)
+plt.bar(feature_names[2:], final_features[2:])
 plt.title('Feature Importance')
 plt.xlabel('Features')
 plt.ylabel('Importance Score')
