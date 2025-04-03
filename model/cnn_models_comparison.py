@@ -35,7 +35,6 @@ evaluate(restnet, test_loader, type="Test")
 model_reports = {}
 
 for i, model_path in enumerate(model_files):
-    
     # Extract model name from filename
     model_name = list(models.keys())[i] 
     model = models[model_name]()  
@@ -60,7 +59,7 @@ for i, model_path in enumerate(model_files):
     report = classification_report(all_labels, all_preds, output_dict=True)
     model_reports[model_name] = report
 
-# #save model_reports to csv
+## Uncomment to save model_reports to csv
 # model_reports_df = pd.DataFrame(model_reports).T
 # model_reports_df.to_csv("model_reports.csv", index=True)
 
@@ -137,11 +136,11 @@ plt.show()
 
 # Data
 data = {
-    "Metric": ["Accuracy", "Precision", "Recall", "F1-Score"],
-    "Mean": [95.1978, 95.2170, 95.1978, 95.1994],
-    "Std": [0.4961, 0.4918, 0.4961, 0.4946],
-    "CI Lower": [94.2736, 94.2957, 94.2736, 94.2739],
-    "CI Upper": [96.2102, 96.2164, 96.2102, 96.2097]
+    "Metric": ["Accuracy",  "F1-Score","Recall", "Precision"],
+    "Mean": [95.1978,  95.1994, 95.1978, 95.2170],
+    "Std": [0.4961, 0.4946,  0.4961,  0.4918,],
+    "CI Lower": [94.2736,  94.2739, 94.2736, 94.2957],
+    "CI Upper": [96.2102,   96.2097,  96.2102, 96.2164]
 }
 df = pd.DataFrame(data)
 
@@ -150,9 +149,9 @@ k_fold_avg_accuracy = 94.3
 
 colors = {
     "Accuracy": "#c39bd3",  
-    "Precision": "#90caf9", 
-    "Recall": "#a5d6a7",     
-    "F1-Score": "#ffcc80"    
+    "F1-Score": "#90caf9", 
+    "Recall": "#a5d6a7",    
+    "Precision": "#ffcc80"
 }
 
 fig, ax = plt.subplots(figsize=(8, 6))
@@ -167,15 +166,15 @@ ax.set_ylim(90, 97)
 
 # Labels and Formatting
 ax.set_ylabel("Mean (%)", fontsize=15, weight="bold")
-ax.set_xticklabels(df["Metric"], fontsize=15, weight="bold", rotation=30, ha="right")
+ax.set_xticklabels(df["Metric"], fontsize=18, weight="bold", rotation=30, ha="right")
 ax.set_title("FullFeaturesResNet Metrics with Confidence Intervals", fontsize=16, weight="bold")
 for bar, mean in zip(bars, df["Mean"]):
-    ax.text(bar.get_x() + bar.get_width()/4, mean + 0.05, f"{mean:.2f}%", ha="center", fontsize=12, weight="bold")
+    ax.text(bar.get_x() + bar.get_width()/4, mean + 0.05, f"{mean:.2f}%", ha="center", fontsize=15, weight="bold")
 
 # Plot K-Fold Average Accuracy on Accuracy Bar
 accuracy_idx = df[df["Metric"] == "Accuracy"].index[0]
 ax.scatter(accuracy_idx, k_fold_avg_accuracy, color="purple", s=100, zorder=3, label="5-Fold Avg (94.3%)")
-ax.text(accuracy_idx + 0.2, k_fold_avg_accuracy - 0.05, "94.3%", ha="center", fontsize=12, weight="bold", color="purple")
+ax.text(accuracy_idx + 0.2, k_fold_avg_accuracy - 0.05, "94.3%", ha="center", fontsize=15, weight="bold", color="purple")
 ax.legend(loc="upper right", fontsize=12)
 
 plt.tight_layout()
