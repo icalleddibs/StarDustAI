@@ -20,6 +20,19 @@ dataset = SpectraDataset(file_paths)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn, shuffle=False)
 
 def compute_feature_importance(model, dataloader):
+    """
+    Compute the feature importance using gradient attribution method.
+    This method computes the gradient of the model's output with respect to the input features.
+    The absolute value of the gradient is averaged over all samples to get the feature importance.
+
+    Inputs:
+        model: model to check feature importance for
+        dataloader: dataloader to load the data
+
+    Returns:
+        feature_importance: array of feature importance scores
+    """
+    
     feature_importance = None
     num_samples = 0
     
@@ -43,9 +56,9 @@ def compute_feature_importance(model, dataloader):
 # Compute feature importance
 feature_importance = compute_feature_importance(model, dataloader)
 
-feature_names = ['flux', 'loglam', 'ivar', 'model','PLATESN2', 'Z', 
-                 'Z_ERR', 'ZWARNING', 'RCHI2', 'PLATEQUALITY', 'snr_uv', 
-                 'snr_r', 'snr_nir', 'snr_ir']
+feature_names = ['flux', 'loglam', 'Flux Inverse Variance', 'model','SNR', 'Redshift', 
+                 'Redshift Error', 'ZWARNING', 'Reduced Chi^2', 'PLATEQUALITY', 'UV SNR', 
+                 'Red SNR', 'Red IR SNR', 'IR SNR']
 
 final_features = []
 for f in feature_names:
@@ -53,10 +66,10 @@ for f in feature_names:
 
 # Plot feature importance
 plt.figure(figsize=(12, 6))
-plt.bar(feature_names[2:], final_features[2:])
-plt.title('Feature Importance')
-plt.xlabel('Features')
-plt.ylabel('Importance Score')
+plt.bar(feature_names[2:], final_features[2:], color = 'purple')
+plt.title('Feature Importance',fontsize=20)
+plt.xlabel('Features',fontsize=14)
+plt.ylabel('Importance Score', fontsize=14)
 plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
 plt.savefig('feature_importance.png')
