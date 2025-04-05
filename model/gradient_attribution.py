@@ -8,14 +8,15 @@ import os
 import glob
 
 # Load the model
+NUM_CLASSES = 3
 model_path = 'model/cnn_experiments/cnn_models_experiment_results/2025-03-24_13-30-03_model.pth'
-model = FullFeaturesResNet(NUM_CLASSES=3)
+model = FullFeaturesResNet(NUM_CLASSES)
 model.load_state_dict(torch.load(model_path))
 model.eval()
 
 # Load a subset of data
 base_dir = 'data/full_zwarning'
-file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:300] 
+file_paths = glob.glob(os.path.join(base_dir, '*/*.pkl'))[:300]
 dataset = SpectraDataset(file_paths)
 dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn, shuffle=False)
 
@@ -53,24 +54,24 @@ def compute_feature_importance(model, dataloader):
     
     return feature_importance / num_samples
 
-# Compute feature importance
-feature_importance = compute_feature_importance(model, dataloader)
+if __name__ == "__main__":
+    feature_importance = compute_feature_importance(model, dataloader)
 
-feature_names = ['flux', 'loglam', 'Flux Inverse Variance', 'model','SNR', 'Redshift', 
-                 'Redshift Error', 'ZWARNING', 'Reduced Chi^2', 'PLATEQUALITY', 'UV SNR', 
-                 'Red SNR', 'Red IR SNR', 'IR SNR']
+    feature_names = ['flux', 'loglam', 'Flux Inverse Variance', 'model','SNR', 'Redshift', 
+                    'Redshift Error', 'ZWARNING', 'Reduced Chi^2', 'PLATEQUALITY', 'UV SNR', 
+                    'Red SNR', 'Red IR SNR', 'IR SNR']
 
-final_features = []
-for f in feature_names:
-    final_features.append(feature_importance[0][feature_names.index(f)])
+    final_features = []
+    for f in feature_names:
+        final_features.append(feature_importance[0][feature_names.index(f)])
 
-# Plot feature importance
-plt.figure(figsize=(12, 6))
-plt.bar(feature_names[2:], final_features[2:], color = 'purple')
-plt.title('Feature Importance',fontsize=20)
-plt.xlabel('Features',fontsize=14)
-plt.ylabel('Importance Score', fontsize=14)
-plt.xticks(rotation=45, ha='right')
-plt.tight_layout()
-plt.savefig('feature_importance.png')
-plt.show()
+    # Plot feature importance
+    plt.figure(figsize=(12, 6))
+    plt.bar(feature_names[2:], final_features[2:], color='purple')
+    plt.title('Feature Importance', fontsize=20)
+    plt.xlabel('Features',fontsize=14)
+    plt.ylabel('Importance Score', fontsize=14)
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig('feature_importance.png')
+    plt.show()
