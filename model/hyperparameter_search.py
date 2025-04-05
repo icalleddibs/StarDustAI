@@ -1,15 +1,17 @@
-import torch
-import torchinfo
-import itertools
-from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNNMoreLayers
-from cnn_training import train, evaluate, save_model
-from torch import nn, optim
-from torch.utils.data import DataLoader, random_split
-from data_model import SpectraDataset, collate_fn
-import glob
 import os
+import glob
 import subprocess
 import random
+import itertools
+
+import torch
+import torchinfo
+from torch import nn, optim
+from torch.utils.data import DataLoader, random_split
+
+from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet
+from cnn_training import train, evaluate, save_model
+from data_model import SpectraDataset, collate_fn
 
 # Get repo root and dataset
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
@@ -39,7 +41,7 @@ param_space = {
 batch_size = 256
 full_trials, dil_trials = 30, 30
 best_params_full, best_params_dil = None, None
-best_acc_full, best_acc_dil = 0,0
+best_acc_full, best_acc_dil = 0, 0
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
@@ -48,7 +50,7 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, colla
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
-    lr, dropout, wd = (params["learning_rate"], params["dropout"], params["weight_decay"])
+    lr, dropout, wd = params["learning_rate"], params["dropout"], params["weight_decay"]
     print(f"\nTesting: Model= FullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}")
     
     # Model, loss, optimizer
@@ -71,7 +73,7 @@ for _ in range(full_trials):
 print(f"\nBest Hyperparameters Full ResNet: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
 
 """
-### Dilated Full Features CNN
+### Dilated Full Features CNN (Disabled for now)
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}

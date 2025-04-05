@@ -18,9 +18,10 @@ soup = BeautifulSoup(response.text, "html.parser")
 fits_files = [a['href'] for a in soup.find_all('a') if a['href'].endswith('.fits')]
 
 # Download function
-def download_file(file):
-    file_url = urljoin(BASE_URL, file)
-    save_path = os.path.join(SAVE_DIR, file)
+def download_file(filename):
+    
+    file_url = urljoin(BASE_URL, filename)
+    save_path = os.path.join(SAVE_DIR, filename)
 
     try:
         with requests.get(file_url, stream=True) as r:
