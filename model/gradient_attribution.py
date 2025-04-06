@@ -1,11 +1,14 @@
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from cnn_experiments.cnn_models import FullFeaturesResNet
-from data_model import SpectraDataset, collate_fn
-from torch.utils.data import DataLoader
 import os
 import glob
+
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+
+from cnn_experiments.cnn_models import FullFeaturesResNet
+from data_model import SpectraDataset, collate_fn
+
 
 # Load the model
 NUM_CLASSES = 3

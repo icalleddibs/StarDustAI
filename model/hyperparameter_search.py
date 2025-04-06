@@ -10,7 +10,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 
 from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, AllFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNN
-from cnn_training import train, evaluate, save_model
+from cnn_training import train, evaluate
 from data_model import SpectraDataset, collate_fn
 
 # Select model to run
