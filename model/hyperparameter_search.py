@@ -43,13 +43,13 @@ param_space = {
 
 batch_size = 256
 full_trials = 30
-best_params_full = None
-best_acc_full = 0
+best_params = None
+best_acc = 0
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-### Full Features ResNet
+### Generalized to all models
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
@@ -78,8 +78,8 @@ for _ in range(full_trials):
     val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
 
     # Track best model
-    if val_acc > best_acc_full:
-        best_acc_full = val_acc
-        best_params_full = params
+    if val_acc > best_acc:
+        best_acc = val_acc
+        best_params = params
 
-print(f"\nBest Hyperparameters for {model_name}: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
+print(f"\nBest Hyperparameters for {model_name}: {best_params}, Validation Accuracy: {best_acc:.2f}%")
