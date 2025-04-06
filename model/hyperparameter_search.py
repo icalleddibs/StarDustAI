@@ -4,7 +4,6 @@ import subprocess
 import random
 import itertools
 
-import torch
 import torchinfo
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
