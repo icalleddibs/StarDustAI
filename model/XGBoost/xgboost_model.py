@@ -167,43 +167,40 @@ plt.xlabel("Predicted Label")
 plt.ylabel("True Label")
 plt.show()
 
-''' The XGB Feature Importance did not work to our expectations, thus only included for completeness. 
-The following code was utilized to produce "feat-_.png" figures in /xgb_figures '''
+# Feature importance
+booster = bst  
+correct_feature_names = ["flux", "loglam", "ivar", "model",
+                         "z", "z_err", 
+                         "sn_median_uv", "sn_median_r", "sn_median_nir", "sn_median_ir",
+                         "zwarning", "rchi2"]
 
-# # Feature importance
-# booster = bst  # bst is already a booster object
-# correct_feature_names = ["flux", "loglam", "ivar", "model",
-#                          "z", "z_err", 
-#                          "sn_median_uv", "sn_median_r", "sn_median_nir", "sn_median_ir",
-#                          "zwarning", "rchi2"]
+feature_importance = booster.get_score(importance_type='weight')
+print("Feature Importance Keys from XGBoost:", feature_importance.keys())
+mapped_importance = defaultdict(int)  # Default to 0 for missing features
 
-# feature_importance = booster.get_score(importance_type='weight')
-# print("Feature Importance Keys from XGBoost:", feature_importance.keys())
-# mapped_importance = defaultdict(int)  # Default to 0 for missing features
+for f, imp in feature_importance.items():
+    if f.startswith("f"):  
+        try:
+            idx = int(f[1:])  # Get the feature index and find the correct feature name
+            if 0 <= idx < len(correct_feature_names): 
+                mapped_importance[correct_feature_names[idx]] = imp
+            else:
+                print(f"Warning: Feature index {idx} out of range, skipping...")
+        except ValueError:
+            print(f"Warning: Unexpected feature format '{f}' ignored.")
 
-# for f, imp in feature_importance.items():
-#     if f.startswith("f"):  
-#         try:
-#             idx = int(f[1:])  # Get the feature index and find the correct feature name
-#             if 0 <= idx < len(correct_feature_names): 
-#                 mapped_importance[correct_feature_names[idx]] = imp
-#             else:
-#                 print(f"Warning: Feature index {idx} out of range, skipping...")
-#         except ValueError:
-#             print(f"Warning: Unexpected feature format '{f}' ignored.")
+sorted_importance = sorted(mapped_importance.items(), key=lambda x: x[1], reverse=True)  # Sort by importance
+feature_names, importance_values = zip(*sorted_importance)
 
-# sorted_importance = sorted(mapped_importance.items(), key=lambda x: x[1], reverse=True)  # Sort by importance
-# feature_names, importance_values = zip(*sorted_importance)
+print("\nFeature Importance Values:")
+for name, importance in sorted_importance:
+    print(f"{name}: {importance}")
 
-# print("\nFeature Importance Values:")
-# for name, importance in sorted_importance:
-#     print(f"{name}: {importance}")
-
-# plt.figure(figsize=(10, 6))
-# plt.barh(feature_names, importance_values, color='skyblue')
-# plt.xlabel('Importance')
-# plt.ylabel('Feature')
-# plt.title('Feature Importance (Corrected)')
-# plt.gca().invert_yaxis() 
-# plt.grid(axis='x', linestyle='--', alpha=0.7) 
-# plt.show()
+plt.figure(figsize=(10, 6))
+plt.barh(feature_names, importance_values, color='skyblue')
+plt.xlabel('Importance')
+plt.ylabel('Feature')
+plt.title('Feature Importance (Corrected)')
+plt.gca().invert_yaxis() 
+plt.grid(axis='x', linestyle='--', alpha=0.7) 
+plt.show()

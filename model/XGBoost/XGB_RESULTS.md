@@ -1,4 +1,5 @@
 # XGB Training Runs
+The following are the results of the XGBoost training runs. The model was trained on a subset of the data and then evaluated on a validation set. The parameters were tuned based on the validation accuracy and classification report. To keep track of the differences in runs, we have listed the files used, the parameters, and the evaluations results for each run. The corresponding confusion matrices are included in the `xgb_figures` folder. The training time is also included for each run. Several runs were used to develop a representation of baseline feature importance, with their figures listed in `xgb_figures/feature_importance`. The final run was used to represent the model for the paper and final evaluation. The results are as follows:
 
 ## Run 1
 - 100 boosts
@@ -16,6 +17,7 @@
 - results:
 Validation Accuracy: 0.9053
 Classification Report:
+```
               precision    recall  f1-score   support
 
    b'GALAXY'       0.86      0.93      0.89        80
@@ -25,6 +27,7 @@ Classification Report:
     accuracy                           0.91       190
    macro avg       0.92      0.92      0.92       190
 weighted avg       0.91      0.91      0.90       190
+```
 
 ## Run 2
 - 100 boosts
@@ -43,6 +46,7 @@ weighted avg       0.91      0.91      0.90       190
 - results:
 Validation Accuracy: 0.9028
 Classification Report:
+```
               precision    recall  f1-score   support
 
    b'GALAXY'       0.88      0.88      0.88       102
@@ -52,6 +56,7 @@ Classification Report:
     accuracy                           0.90       247
    macro avg       0.92      0.90      0.91       247
 weighted avg       0.90      0.90      0.90       247
+```
 
 ## Run 3
 - 100 boosts
@@ -70,6 +75,7 @@ weighted avg       0.90      0.90      0.90       247
 - results:
 Validation Accuracy: 0.9627
 Classification Report:
+```
               precision    recall  f1-score   support
 
    b'GALAXY'       0.94      0.95      0.95      1119
@@ -79,6 +85,7 @@ Classification Report:
     accuracy                           0.96      3244
    macro avg       0.97      0.97      0.97      3244
 weighted avg       0.96      0.96      0.96      3244
+```
 
 ## Run 4
 - 50 boosts
@@ -97,6 +104,7 @@ weighted avg       0.96      0.96      0.96      3244
 - results:
 Training time: 532.45 seconds
 Validation Accuracy: 0.9575
+```
 Classification Report:
               precision    recall  f1-score   support
 
@@ -107,9 +115,9 @@ Classification Report:
     accuracy                           0.96      3997
    macro avg       0.96      0.97      0.96      3997
 weighted avg       0.96      0.96      0.96      3997
+```
 
 ## Run 5
-Official run used to represent the baseline model
 - 100 boosts
 - full dataset
 - params = {
@@ -127,6 +135,7 @@ Official run used to represent the baseline model
 - Training time: 1042.08 seconds
 Validation Accuracy: 0.9557
 Classification Report:
+```
               precision    recall  f1-score   support
 
    b'GALAXY'       0.93      0.94      0.94      1417
@@ -135,12 +144,11 @@ Classification Report:
     accuracy                           0.96      3997
    macro avg       0.96      0.96      0.96      3997
 weighted avg       0.96      0.96      0.96      3997
-- **attempted feature importance but the XGB library didn't seem to work. will run again to test and use the new data loader.**
+```
 
 ## Run 6
-Using the cleaned pkl files
 - 100 boosts
-- full dataset
+- full dataset of cleaned pkl files
 - params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -156,6 +164,7 @@ Using the cleaned pkl files
 - Training time: 721.92 seconds
 Validation Accuracy: 0.9873
 Classification Report:
+```
               precision    recall  f1-score   support
 
       GALAXY       0.98      0.98      0.98       950
@@ -165,12 +174,11 @@ Classification Report:
     accuracy                           0.99      2996
    macro avg       0.99      0.99      0.99      2996
 weighted avg       0.99      0.99      0.99      2996
-- **attempted feature importance but the XGB library didn't seem to work. will run again to test and use the new data loader.**
+```
 
 ## Run 7
-Using the cleaned pkl files and fixed feature importance
 - 100 boosts
-- full dataset
+- full dataset of cleaned pkl files
 - params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -186,6 +194,7 @@ Using the cleaned pkl files and fixed feature importance
 - Training time: 730.92 seconds
 Validation Accuracy: 0.9873
 Classification Report:
+```
               precision    recall  f1-score   support
 
       GALAXY       0.98      0.98      0.98       950
@@ -195,7 +204,9 @@ Classification Report:
     accuracy                           0.99      2996
    macro avg       0.99      0.99      0.99      2996
 weighted avg       0.99      0.99      0.99      2996
-- Feature Importance Values:
+```
+- Feature Importance Results:
+```
     z: 872.0
     z_err: 779.0
     rchi2: 135.0
@@ -207,11 +218,11 @@ weighted avg       0.99      0.99      0.99      2996
     ivar: 4.0
     loglam: 3.0
     sn_median_nir: 3.0
+```
 
 ## Run 8
-Trying to update feature importance by concatenating all features into a row
 - 100 boosts
-- full dataset
+- full dataset of cleaned pkl files
 - params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -227,6 +238,7 @@ Trying to update feature importance by concatenating all features into a row
 Training time: 887.90 seconds
 Validation Accuracy: 0.9875
 Classification Report:
+```
               precision    recall  f1-score   support
 
       GALAXY       0.98      0.98      0.98       729
@@ -236,7 +248,9 @@ Classification Report:
     accuracy                           0.99      2247
    macro avg       0.99      0.99      0.99      2247
 weighted avg       0.99      0.99      0.99      2247
-- Feature Importance Values:
+```
+- Feature Importance Results:
+```
     z: 910.0
     z_err: 788.0
     rchi2: 173.0
@@ -248,11 +262,11 @@ weighted avg       0.99      0.99      0.99      2247
     loglam: 5.0
     ivar: 5.0
     flux: 2.0
+```
 
 ## Run 9
-Checking consistency of parameters
 - 100 boosts
-- full dataset
+- full dataset of cleaned pkl files
 - params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -268,6 +282,7 @@ Checking consistency of parameters
 Training time: 766.77 seconds
 Validation Accuracy: 0.9875
 Classification Report:
+```
               precision    recall  f1-score   support
 
       GALAXY       0.98      0.98      0.98       729
@@ -277,12 +292,12 @@ Classification Report:
     accuracy                           0.99      2247
    macro avg       0.99      0.99      0.99      2247
 weighted avg       0.99      0.99      0.99      2247
-
+```
 
 ## Run 10
-Final confusion matrix
+Final run used to represent the model for the paper and final evaluation
 - 100 boosts
-- full dataset
+- full dataset of cleaned pkl files
 - params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_encoded)),
@@ -298,6 +313,7 @@ Final confusion matrix
 Training time: 957.51 seconds
 Validation Accuracy: 0.9875
 Classification Report:
+```
               precision    recall  f1-score   support
 
       GALAXY       0.98      0.98      0.98       729
@@ -307,3 +323,4 @@ Classification Report:
     accuracy                           0.99      2247
    macro avg       0.99      0.99      0.99      2247
 weighted avg       0.99      0.99      0.99      2247
+```
