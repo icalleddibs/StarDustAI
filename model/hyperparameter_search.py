@@ -9,9 +9,12 @@ import torchinfo
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 
-from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, DilatedFullFeaturesCNN, FullFeaturesResNet
+from cnn_experiments.cnn_models import EarlyStopping, FocalLoss, AllFeaturesCNN, DilatedFullFeaturesCNN, FullFeaturesResNet, FullFeaturesCNN
 from cnn_training import train, evaluate, save_model
 from data_model import SpectraDataset, collate_fn
+
+# Select model to run
+model_name = "FullFeaturesResNet"
 
 # Get repo root and dataset
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
@@ -32,16 +35,16 @@ train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, va
 
 # Hyperparameter search space
 param_space = {
-    "learning_rate": [0.005, 0.001],
-    "dropout": [0.4, 0.5],
+    "learning_rate": [0.005, 0.001, 0.01, 0.0001, 0.0005],
+    "dropout": [0.1, 0.2, 0.3, 0.4, 0.5],
     "weight_decay": [0.0001, 0.001],
     "dilation": [2, 3, 4]
 }
 
 batch_size = 256
-full_trials, dil_trials = 30, 30
-best_params_full, best_params_dil = None, None
-best_acc_full, best_acc_dil = 0, 0
+full_trials = 30
+best_params_full = None
+best_acc_full = 0
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
@@ -50,11 +53,20 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, colla
 for _ in range(full_trials):
     # Randomly sample parameters
     params = {key: random.choice(values) for key, values in param_space.items()}
-    lr, dropout, wd = params["learning_rate"], params["dropout"], params["weight_decay"]
-    print(f"\nTesting: Model= FullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}")
+    lr, dropout, wd, dil = params["learning_rate"], params["dropout"], params["weight_decay"], params["dilation"]
+    print(f"\nTesting: Model= {model_name}, lr={lr}, dropout={dropout}, weight_decay={wd}")
     
-    # Model, loss, optimizer
-    model = FullFeaturesResNet(NUM_CLASSES=3, dropout_rate=dropout)
+    if model_name == "FullFeaturesResNet":
+        model = FullFeaturesResNet(NUM_CLASSES=3, dropout_rate=dropout)
+    elif model_name == "DilatedFullFeaturesCNN":
+        model = DilatedFullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout, dilation=dilation)
+    elif model_name == "FullFeaturesCNN":
+        model = FullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout)
+    elif model_name == "AllFeaturesCNN":
+        model = AllFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout)
+    else:
+        raise print("Unsupported model: {model_name}")
+    
     model.train()
     print(torchinfo.summary(model))
     criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
@@ -70,31 +82,4 @@ for _ in range(full_trials):
         best_acc_full = val_acc
         best_params_full = params
 
-print(f"\nBest Hyperparameters Full ResNet: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
-
-"""
-### Dilated Full Features CNN (Disabled for now)
-for _ in range(full_trials):
-    # Randomly sample parameters
-    params = {key: random.choice(values) for key, values in param_space.items()}
-    lr, dropout, wd, dilation = (params["learning_rate"], params["dropout"], params["weight_decay"], params["dilation"])
-    print(f"\nTesting: Model= DilatedFullFeaturesCNN, lr={lr}, dropout={dropout}, weight_decay={wd}, dilation={dilation}")
-    
-    # Model, loss, optimizer
-    model = DilatedFullFeaturesCNN(NUM_CLASSES=3, dropout_rate=dropout, dilation = dilation)
-    model.train()
-    print(torchinfo.summary(model))
-    criterion = FocalLoss(alpha=[0.2, 0.3, 0.5], gamma=0.5)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
-
-    # Train and evaluate
-    training_time = train(model, criterion, optimizer, NUM_EPOCHS=3) 
-    val_acc = evaluate(model, val_loader, ['STAR', 'GALAXY', 'QSO'], type="Validation")
-
-    # Track best model
-    if val_acc > best_acc_dil:
-        best_acc_dil = val_acc
-        best_params_dil = params
-
-print(f"\nBest Hyperparameters Dilated: {best_params_dil}, Validation Accuracy: {best_acc_dil:.2f}%")
-"""
+print(f"\nBest Hyperparameters for {model_name}: {best_params_full}, Validation Accuracy: {best_acc_full:.2f}%")
