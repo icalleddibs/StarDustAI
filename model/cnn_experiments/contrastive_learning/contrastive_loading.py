@@ -5,12 +5,17 @@ import pickle as pkl
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 
+'''
+The script is modified from the original data loading procedures to load and preprocess specific aspects
+of the data for a contrastive learning task. It handles the loading of pickle files, normalization of
+numerical values, and conversion of categorical labels to integers. 
+'''
+
 class SpectraDataset(Dataset):
     def __init__(self, file_paths):
         self.file_paths = file_paths
         self.class_categories = ['STAR', 'GALAXY', 'QSO']
         self.plate_quality_tags = {'bad': 0, 'marginal': 1, 'good': 2, 'nan': np.nan}
-
         self.scaler = MinMaxScaler()  # Normalization
 
     def __len__(self):
@@ -38,7 +43,8 @@ class SpectraDataset(Dataset):
         df[['flux', 'loglam']] = self.scaler.fit_transform(df[['flux', 'loglam']])
 
         # Ensure all columns are numerical
-        df = df.apply(pd.to_numeric, errors='coerce').fillna(0)  # Convert non-numeric values to NaN, then replace with 0
+        # Convert non-numeric values to NaN, then replace with 0
+        df = df.apply(pd.to_numeric, errors='coerce').fillna(0) 
 
         # Convert to tensor
         features_tensor = torch.tensor(df.values, dtype=torch.float32)

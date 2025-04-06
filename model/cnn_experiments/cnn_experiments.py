@@ -30,10 +30,10 @@ import plotly as px
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 
-# set seed for reproducibility 
+# Set seed for reproducibility 
 random.seed(42)
 
-# # Get the repo root (assumes script is inside STARDUSTAI/)
+# Get the repo root (assumes script is inside STARDUSTAI/)
 repo_root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 base_dir = os.path.join(repo_root, "data/full_zwarning")
 file_paths = glob.glob(os.path.join(base_dir, "*/*.pkl"))
@@ -79,8 +79,6 @@ test_loader = DataLoader(
     test_dataset, batch_size=BATCH_SIZE,
     collate_fn=collate_fn, shuffle=False
 )
-
-
 
 
 def evaluate(model, dataloader, class_names, type="Test"):
