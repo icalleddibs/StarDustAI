@@ -59,10 +59,6 @@ for i, model_path in enumerate(model_files):
     report = classification_report(all_labels, all_preds, output_dict=True)
     model_reports[model_name] = report
 
-## Uncomment to save model_reports to csv
-# model_reports_df = pd.DataFrame(model_reports).T
-# model_reports_df.to_csv("model_reports.csv", index=True)
-
 # # Define metric thresholds
 thresholds = {"Accuracy": 0.93, "F1-Score": 0.94, "Recall": 0.94, "Precision": 0.93}
 
