@@ -7,28 +7,10 @@ The goal of StarDustAI is to utilize SDSS (eBOSS) data to correctly classify gal
 
 The project is divided into two main components: data preprocessing and model development. The data preprocessing component focuses on cleaning and preparing the SDSS data for analysis, while the model development component involves building and evaluating multiple machine learning models to classify galaxies based on their spectral features, as well as computing feature importance to verify known relationships between spectral data and galaxy classification.
 
+The final model used for classification is a custom ResNet architecture called **FullFeaturesResNet** which was trained on the preprocessed SDSS data. The model was evaluated using various metrics, including accuracy, precision, recall, and F1-score. The results of the model evaluation and additional experiments for comparison are documented in the `report_figures` folder. The model was able to acheive **95% accuracy** on the test set, demonstrating its effectiveness in classifying galaxies based on their spectral features.
+
 ## Data
 The data is fetched from the SDSS database using the `2_fetch_data.py` script. The script fetches the data requested in '1_generate_file_names.py' and saves each file as a `.fits` file in the `data/full` directory. To access the data used in the project directly, please refer to this following link: [Dataset](https://utoronto-my.sharepoint.com/:u:/g/personal/sarvnaz_ale_mail_utoronto_ca/EdfmeoDkF6BFlp5z9fwOt2oBw71Qc-u0pft_NT2IOoSc7Q?e=uWI8a1)
-
-## Current Progress
-- Started data exploration
-    - Understanding eBOSS experiments and the science behind spectroscopy measurements
-    - Selecting variables to utilize (complete)
-    - Exploring balances of different classes and data quality flags to determine data to use in our model
-- Started data preprocessing
-    - Removing unwanted variables
-    - Creating suitable representation of data
-        - Currently grouped into tensors
-- Initial test of data
-    - [XGBoost](https://xgboost.readthedocs.io/en/stable/): a powerful model often used as a baseline for machine learning models.
-        - Running our data through an XGBoost model will set a baseline for reasonable results, as XGBoost performs reliably.
-            - The classification metrics will set our expectations as we develop StarDustAI.
-            - Knowing which features are most important for classification will shape our approach.
-        - If we find that the results are bad (after hyperparameter tuning), we will reasses our dataset.
-            - The hyperparameter required adjustments made will also inform our approach.
-        - Gives us a comparison for our report
-    - Simple CNN: one of the best methods for spectral analysis
-        - Will use these findings to support the (baseline) CNN of StarDustAI
 
 ## Models
 Folder for the Model elements of StarDustAI. Including details on baseline models, our models, and interpretability.
