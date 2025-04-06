@@ -1,9 +1,7 @@
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import os
 from tqdm import tqdm
 from glob import glob
 from cnn_training import test_loader, evaluate
